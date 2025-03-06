@@ -46,9 +46,10 @@ import time
 from tkinter import filedialog
 from tkinter import scrolledtext
 from tkinter import colorchooser
+from tkinter import Frame
 
 import tkinter as tk
-
+from tkinter import ttk
 
 
 def open_file_dialog():
@@ -550,8 +551,11 @@ def main():
     Dateien = open_files_dialog()
 
     if len(Dateien) == 0 and Datei_umring == '':
-        print('Programmabbruch: keine Datei gewählt')
-        sys.exit()
+        #print('Programmabbruch: keine Datei gewählt')
+        file_text.insert(tk.END, 'Programmabbruch: keine Datei gewählt' + '\n')
+        root.update_idletasks()
+        root.destroy 
+        #sys.exit()
     
     #liste = daten_einlesen(Datei)
     liste_p = []
@@ -575,8 +579,11 @@ def main():
     #print(punkte_xy[:5], punkte_xy_o[:5])
     if len(punkte_xy) < 3:
         
-        print('Programmabbruch: Die Dateien sind keine Koordinatendatei')
-        sys.exit()
+        #print('Programmabbruch: Die Dateien sind keine Koordinatendatei')
+        file_text.insert(tk.END, 'Programmabbruch: Die Dateien sind keine Koordinatendatei' + '\n')
+        root.update_idletasks()
+        root.destroy 
+        #sys.exit()
     #           print('Anzahl Punkte in Koordinatenliste : ', len(punkte_xyz))
 
     hole_points=[]    
@@ -720,6 +727,17 @@ if __name__ == '__main__':
             root = tk.Tk()
             root.title("KGE-DGM basierend auf Triangle (J.Shewchuk) und triangle (D.Rufat): hier PSLG: segmente (lines): umring und innen - punkte innen - lines in holes ")
 
+            notebook = ttk.Notebook(root)
+            notebook.pack(pady=10, expand=True)
+
+            frameHaupt = ttk.Frame(notebook, width=600, height=480)
+            frameFarben = ttk.Frame(notebook, width=600, height=480)
+
+            frameHaupt.pack(fill='both', expand=True)
+            frameFarben.pack(fill='both', expand=True)
+
+            notebook.add(frameHaupt, text='Hauptprogramm')
+            notebook.add(frameFarben, text='Farbpicker aus Colortable')
 
             
             text_ = "zuerst Farb-Nr fuer DGM und DGM auf Ebene einstellen \n"
@@ -731,45 +749,60 @@ if __name__ == '__main__':
             text_ = text_ + "4. Koordinatendatei Linien innerhalb Loecher"
 
 
-            hinweise_label = tk.Label(root, text=text_)
+            hinweise_label = tk.Label(frameHaupt, text=text_)
             hinweise_label.pack(padx=20, pady=20)
 
 
-            file_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, height=25, width=100)
+            file_text = scrolledtext.ScrolledText(frameHaupt, wrap=tk.WORD, height=25, width=100)
             file_text.pack(padx=20, pady=20)
 
             
-            color_label = tk.Label(root, text = "Farb-Nr waehlen fuer das DGM :")
+            color_label = tk.Label(frameHaupt, text = "Farb-Nr waehlen fuer das DGM :")
             color_label.pack()
 
             dgmColor = 9
-            w_color = tk.Scale(root, from_=0, to=254, length=1200, tickinterval=15, orient=tk.HORIZONTAL, command=farbe_aendern)
+            w_color = tk.Scale(frameHaupt, from_=0, to=254, length=1200, tickinterval=15, orient=tk.HORIZONTAL, command=farbe_aendern)
             w_color.set(dgmColor)
             w_color.pack()
             
-            color_label = tk.Label(root, text = farben_[dgmColor], bg=farben_[dgmColor])
+            color_label = tk.Label(frameHaupt, text = farben_[dgmColor], bg=farben_[dgmColor])
             color_label.pack(padx=20, pady=20)
+
+            n=255 # number of buttons
+            i=0 # row 
+            j=0 # column 
+
+            buttons = []
+            for k in range(n):
+                e = tk.Button(frameFarben, text=k,height=1,width=3,	bg=farben_[k], command=lambda k=k: w_color.set(k)) 
+                e.grid(row=i, column=j, padx=1, pady=1)
+                buttons.append(e)
+                j=j+1
+                if(j%16==0):
+                    i=i+1
+                    j=0
+
 
 
             # Level
             levelList,levelListIDs = GetLevelList()   
 
-            level_label = tk.Label(root, text="DGM auf Ebene: ")
+            level_label = tk.Label(frameHaupt, text="DGM auf Ebene: ")
             selected_level = tk.StringVar()
             selected_level.set(levelList[0])
-            level_option = tk.OptionMenu(root, selected_level, *levelList) 
+            level_option = tk.OptionMenu(frameHaupt, selected_level, *levelList) 
             level_label.pack(side= "left", padx=20, pady=20) 
             level_option.pack(side= "left", padx=20, pady=20)
 
 
-            button_quit = tk.Button(root,text='Programm beenden', command=root.destroy)
+            button_quit = tk.Button(frameHaupt,text='Programm beenden', command=root.destroy)
             button_quit.pack(side = "right", padx=20, pady=20)
 
-            button_undo_mark = tk.Button(root, text='undo mark senden', command=undo_mark)  
+            button_undo_mark = tk.Button(frameHaupt, text='undo mark senden', command=undo_mark)  
             button_undo_mark.pack(side = "right", padx=20, pady=20)
             button_undo_mark.config(state='disabled')          
 
-            open_button = tk.Button(root, text="Im Programm fortfahren", command=main)
+            open_button = tk.Button(frameHaupt, text="Im Programm fortfahren", command=main)
             open_button.pack(side = "right", padx=20, pady=20)
 
             root.mainloop()

@@ -552,9 +552,9 @@ def main():
 
     if len(Dateien) == 0 and Datei_umring == '':
         #print('Programmabbruch: keine Datei gewählt')
-        file_text.insert(tk.END, 'Programmabbruch: keine Datei gewählt' + '\n')
+        file_text.insert(tk.END, 'Programmabbruch: keine Koordinaten-Datei gewählt' + '\n')
         root.update_idletasks()
-        root.destroy 
+        return
         #sys.exit()
     
     #liste = daten_einlesen(Datei)
@@ -579,10 +579,10 @@ def main():
     #print(punkte_xy[:5], punkte_xy_o[:5])
     if len(punkte_xy) < 3:
         
-        #print('Programmabbruch: Die Dateien sind keine Koordinatendatei')
-        file_text.insert(tk.END, 'Programmabbruch: Die Dateien sind keine Koordinatendatei' + '\n')
+        #print('Programmabbruch: Die Dateien sind keine Koordinatendateien')
+        file_text.insert(tk.END, 'Programmabbruch: Die Dateien sind keine Koordinatendateien' + '\n')
         root.update_idletasks()
-        root.destroy 
+        return
         #sys.exit()
     #           print('Anzahl Punkte in Koordinatenliste : ', len(punkte_xyz))
 
@@ -738,6 +738,9 @@ if __name__ == '__main__':
 
             notebook.add(frameHaupt, text='Hauptprogramm')
             notebook.add(frameFarben, text='Farbpicker aus Colortable')
+            
+            frameFarben2 = Frame(master=frameFarben)
+            frameFarben2.pack()
 
             
             text_ = "zuerst Farb-Nr fuer DGM und DGM auf Ebene einstellen \n"
@@ -768,15 +771,15 @@ if __name__ == '__main__':
             color_label = tk.Label(frameHaupt, text = farben_[dgmColor], bg=farben_[dgmColor])
             color_label.pack(padx=20, pady=20)
 
-            n=255 # number of buttons
-            i=0 # row 
-            j=0 # column 
+            n=255 # anzahl farb-buttons
+            i=0 # zeile 
+            j=0 # spalte 
 
             buttons = []
             for k in range(n):
-                e = tk.Button(frameFarben, text=k,height=1,width=3,	bg=farben_[k], command=lambda k=k: w_color.set(k)) 
-                e.grid(row=i, column=j, padx=1, pady=1)
-                buttons.append(e)
+                but = tk.Button(frameFarben2, text=k,height=1,width=3, bg=farben_[k], command=lambda k=k: w_color.set(k)) 
+                but.grid(row=i, column=j, padx=1, pady=1)
+                buttons.append(but)
                 j=j+1
                 if(j%16==0):
                     i=i+1

@@ -685,7 +685,14 @@ def lift_window(window):
 def farbe_aendern(i):
     dgm_color = w_color.get()
     color_label.config(text = farben_[dgm_color], bg=farben_[dgm_color])
-
+    farbe.config(bg=farben_[dgm_color], text = dgm_color)
+    
+def farb_pick(k):
+    dgm_color = k
+    farbe.config(bg=farben_[dgm_color], text = dgm_color)
+    w_color.set(k)
+    
+        
 def undo_mark():
     PyCadInputQueue.SendKeyin("undo mark")
     button_undo_mark.config(state='disabled')
@@ -777,13 +784,16 @@ if __name__ == '__main__':
 
             buttons = []
             for k in range(n):
-                but = tk.Button(frameFarben2, text=k,height=1,width=3, bg=farben_[k], command=lambda k=k: w_color.set(k)) 
+                but = tk.Button(frameFarben2, text=k,height=1,width=3, bg=farben_[k], command=lambda k=k: farb_pick(k)) 
                 but.grid(row=i, column=j, padx=1, pady=1)
                 buttons.append(but)
                 j=j+1
                 if(j%16==0):
                     i=i+1
                     j=0
+            
+            farbe = tk.Button(frameFarben, text=dgmColor, bg=farben_[dgmColor], height=1, width=6, padx=2, pady=2)
+            farbe.pack()
 
 
 

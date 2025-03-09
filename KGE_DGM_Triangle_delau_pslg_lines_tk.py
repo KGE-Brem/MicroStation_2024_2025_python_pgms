@@ -684,7 +684,7 @@ def lift_window(window):
 #tkinter sliderwert aendert sich
 def farbe_aendern(i):
     dgm_color = w_color.get()
-    color_label.config(text = farben_[dgm_color], bg=farben_[dgm_color])
+    color_button.config(text = farben_[dgm_color], bg=farben_[dgm_color])
     farbe.config(bg=farben_[dgm_color], text = dgm_color)
     
 def farb_pick(k):
@@ -692,6 +692,11 @@ def farb_pick(k):
     farbe.config(bg=farben_[dgm_color], text = dgm_color)
     w_color.set(k)
     
+def select_tab():
+    notebook.select(frameFarben)
+    
+def select_tab_H():
+    notebook.select(frameHaupt)
         
 def undo_mark():
     PyCadInputQueue.SendKeyin("undo mark")
@@ -763,7 +768,7 @@ if __name__ == '__main__':
             hinweise_label.pack(padx=20, pady=20)
 
 
-            file_text = scrolledtext.ScrolledText(frameHaupt, wrap=tk.WORD, height=25, width=100)
+            file_text = scrolledtext.ScrolledText(frameHaupt, wrap=tk.WORD, height=20, width=100)
             file_text.pack(padx=20, pady=20)
 
             
@@ -775,8 +780,8 @@ if __name__ == '__main__':
             w_color.set(dgmColor)
             w_color.pack()
             
-            color_label = tk.Label(frameHaupt, text = farben_[dgmColor], bg=farben_[dgmColor])
-            color_label.pack(padx=20, pady=20)
+            color_button = tk.Button(frameHaupt, height=1, width=10, text = farben_[dgmColor], bg=farben_[dgmColor], command=select_tab)
+            color_button.pack(padx=20, pady=20)
 
             n=255 # anzahl farb-buttons
             i=0 # zeile 
@@ -792,7 +797,7 @@ if __name__ == '__main__':
                     i=i+1
                     j=0
             
-            farbe = tk.Button(frameFarben, text=dgmColor, bg=farben_[dgmColor], height=1, width=6, padx=2, pady=2)
+            farbe = tk.Button(frameFarben, text=dgmColor, bg=farben_[dgmColor], height=1, width=6, padx=2, pady=2, command=select_tab_H )
             farbe.pack()
 
 

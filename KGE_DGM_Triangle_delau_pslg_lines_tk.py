@@ -75,6 +75,14 @@ def open_files_dialog():
     files_ = filedialog.askopenfilenames(title="3. von 4. Waehle eine oder mehrere Punktdateien - coordinates", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
     return files_
 
+def file_save(koordinaten_):
+    f = filedialog.asksaveasfile(mode='w', initialfile = label_ex.cget('text'), defaultextension=".tmp")
+    if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
+        return
+    for zeile_ in koordinaten_:
+        f.write(zeile_ + '\n')
+    f.close() 
+
 def dateien_einlesen(dateien):
     liste_local = []
     for datei in dateien:
@@ -703,6 +711,149 @@ def undo_mark():
     button_undo_mark.config(state='disabled')
     lift_window(root)
 
+def item_selected():
+    for selected_item in tree_1.selection():
+        item = tree_1.item(selected_item)
+        record = item['values']
+        # show a message
+        #message=','.join(record)
+        # showinfo(title='Information', message=','.join(record))
+        print(record)
+
+#Function to select elements by its type 3 (line) or 4 (linestring)
+def selectElementsbyType_3_4():
+    levelAnzahlElemente=[]
+    levelAnzahlLines=[]
+    levelAnzahlLinestrings=[]
+    for i in range(max(levelListIDs)+1):
+        levelAnzahlElemente.append(0)
+        levelAnzahlLines.append(0)
+        levelAnzahlLinestrings.append(0)
+    #print(levelAnzahlElemente)
+    
+    #Get active model
+    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
+    dgnModel = ACTIVEMODEL.GetDgnModel()
+    #name =  model.GetModelName()
+    #Get all graphical elements from the model
+    graphicalElements = dgnModel.GetGraphicElements()
+
+    for perElementRef in graphicalElements:
+        elementId = perElementRef.GetElementId()
+        eeh = EditElementHandle(perElementRef, dgnModel)
+        eh = ElementHandle(perElementRef)
+
+        msElement = MSElement()
+        msElement = eeh.GetElement ()
+
+        isGraphics = msElement.ehdr.isGraphics
+        isInvisible = msElement.hdr.dhdr.props.b.invisible
+
+        if (isGraphics and not(isInvisible)):
+            eleType = eh.GetElementType()
+            levelId = msElement.ehdr.level
+            if(eleType == 3) or (eleType == 4):
+                #It will select highlight all elements added in selection set
+                #selSetManager.AddElement(perElementRef,dgnModel)
+                if levelId in levelListIDs:
+                    levelAnzahlElemente[levelId] = levelAnzahlElemente[levelId] + 1
+                    if eleType == 3:
+                        levelAnzahlLines[levelId] = levelAnzahlLines[levelId] + 1
+                    if eleType == 4:
+                        levelAnzahlLinestrings[levelId] = levelAnzahlLinestrings[levelId] + 1
+    # loesche alle items in treeview tree_1
+    
+    all_root_items = tree_1.get_children()
+    tree_1.delete(*all_root_items)
+    root.update_idletasks()
+
+
+    # daten aktualisieren
+    ebenen = []
+    for i in range(len(levelListIDs)):
+        levelId_ = levelListIDs[i]
+        if levelAnzahlElemente[levelId_] > 0:
+            ebenen.append((levelList[i], levelListIDs[i], levelAnzahlElemente[levelId_], levelAnzahlLines[levelId_], levelAnzahlLinestrings[levelId_]))
+
+    # add data to the treeview
+    for ebene in ebenen:
+        tree_1.insert('', tk.END, values=ebene) 
+
+    if len(ebenen) > 0: button_2.config(state='active')
+
+    root.update_idletasks()   
+
+    #print(levelAnzahlElemente)
+
+def exportElementsbyType_3_4():
+    koordinaten_liste_=[]
+    ebenenId_selected = []
+
+    if len(tree_1.selection()) == 0: return
+
+    for selected_item in tree_1.selection():
+        item = tree_1.item(selected_item)
+        record = item['values']
+        id_=record[1]
+        ebenenId_selected.append(id_)
+    
+    #print(ebenenId_selected)
+
+    start = DPoint3d()
+    end = DPoint3d()
+
+    
+    #Get active model
+    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
+    dgnModel = ACTIVEMODEL.GetDgnModel()
+    #Get all graphical elements from the model
+    graphicalElements = dgnModel.GetGraphicElements()
+
+    for perElementRef in graphicalElements:
+        elementId = perElementRef.GetElementId()
+        eeh = EditElementHandle(perElementRef, dgnModel)
+        eh = ElementHandle(perElementRef)
+
+        msElement = MSElement()
+        msElement = eeh.GetElement ()
+
+        isGraphics = msElement.ehdr.isGraphics
+        isInvisible = msElement.hdr.dhdr.props.b.invisible
+
+        if (isGraphics and not(isInvisible)):
+            eleType = eh.GetElementType()
+            levelId = msElement.ehdr.level
+            if levelId in ebenenId_selected:
+                if (eleType == 3) or (eleType == 4):
+                    curve = ICurvePathQuery.ElementToCurveVector(eh)
+                    curve.GetStartEnd(start, end)
+                    #primitiveType = curve.HasSingleCurvePrimitive()
+                    #lineLength = curve.Length()
+                    #print('Laenge = ', lineLength/g_1mu)
+                    if eleType == 3:
+                        #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu),(start.y/g_1mu),(start.z/g_1mu)))
+                        #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu), (end.y/g_1mu), (end.z/g_1mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu),(start.y/g_1mu),(start.z/g_1mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu), (end.y/g_1mu), (end.z/g_1mu)))
+                    if eleType == 4:
+                        #print('linestring')
+                        for element in curve:
+                            points = element.GetLineString()
+                            for i in range(len(points)-1):
+                                point_a = points[i]
+                                point_b = points[i+1]
+                                #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu),(point_a.y/g_1mu),(point_a.z/g_1mu)))
+                                #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu), (point_b.y/g_1mu), (point_b.z/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu),(point_a.y/g_1mu),(point_a.z/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu),(point_b.y/g_1mu),(point_b.z/g_1mu)))
+
+    #print(koordinaten_liste_[:])
+    if len(koordinaten_liste_) > 0:
+        file_save(koordinaten_liste_)
+
+
+    
+
 
 
 if __name__ == '__main__':
@@ -712,6 +863,8 @@ if __name__ == '__main__':
     global g_1mu
     global dgm_color
     global selected_level
+    global levelList
+    global levelListIDs
     global farben_
         
         
@@ -744,12 +897,15 @@ if __name__ == '__main__':
 
             frameHaupt = ttk.Frame(notebook, width=600, height=480)
             frameFarben = ttk.Frame(notebook, width=600, height=480)
+            frameExportLines = ttk.Frame(notebook, width=600, height=480)
 
             frameHaupt.pack(fill='both', expand=True)
             frameFarben.pack(fill='both', expand=True)
+            frameExportLines.pack(fill='both', expand=True)
 
-            notebook.add(frameHaupt, text='Hauptprogramm')
-            notebook.add(frameFarben, text='Farbpicker aus Colortable')
+            notebook.add(frameHaupt, text='  Hauptprogramm  ')
+            notebook.add(frameFarben, text='  Farbpicker aus Colortable  ')
+            notebook.add(frameExportLines, text='  Segmente exportieren - outer, inner, holes  ')
             
             frameFarben2 = Frame(master=frameFarben)
             frameFarben2.pack()
@@ -801,9 +957,66 @@ if __name__ == '__main__':
             farbe.pack()
 
 
+            frame3_1 = ttk.Frame(master=frameExportLines)
+            frame3_2 = ttk.Frame(master=frameExportLines)
+            frame3_1.pack(pady=20)
+            frame3_2.pack(pady=20)
 
+
+            # define columns
+            columns = ('level_name', 'level_id', 'anzahl_elemente', 'lines', 'linestrings')
+
+            tree_1 = ttk.Treeview(frame3_1, columns=columns, show='headings')
+
+            # define headings
+            tree_1.heading('level_name', text='Level Name')
+            tree_1.heading('level_id', text='Level ID')
+            tree_1.heading('anzahl_elemente', text='Anzahl Elemente')
+            tree_1.heading('lines', text='Anzahl lines')
+            tree_1.heading('linestrings', text='Anzahl linestrings')
+
+            
             # Level
-            levelList,levelListIDs = GetLevelList()   
+            levelList,levelListIDs = GetLevelList()
+
+            # erste daten erzeugen
+            ebenen = []
+            for i in range(len(levelListIDs)):
+                ebenen.append((levelList[i], levelListIDs[i], -1, -1, -1))
+
+            # und eintragen
+            for ebene in ebenen:
+                tree_1.insert('', tk.END, values=ebene)
+
+            tree_1.grid(row=0, column=0, sticky='nsew')
+
+            # add a scrollbar
+            scrollbar = ttk.Scrollbar(frame3_1, orient=tk.VERTICAL, command=tree_1.yview)
+            tree_1.configure(yscroll=scrollbar.set)
+            scrollbar.grid(row=0, column=1, sticky='ns')
+
+            button_1 = tk.Button(frame3_1, text='Zeichnung scannen (lines  linestrings)', command=selectElementsbyType_3_4) 
+            button_1.grid(row=1, column=0)
+
+            button_2 = tk.Button(frame3_1, text='       markierte Ebenen auswerten       ', command=exportElementsbyType_3_4) #item_selected) 
+            button_2.grid(row=3, column=0) 
+            button_2.config(state='disabled') 
+
+            exports = ["segmente_umring", "segmente_innen", "lines_holes"]
+            label_ex = tk.Label(frame3_2,text=f"KGE_DGM_Triangle_{exports[0]}.tmp")
+            label_ex.pack(anchor="w", padx=10, pady=10) 
+            variable_ = tk.StringVar(frame3_2, f"{exports[0]}")
+
+            def selection():
+                label_ex.config(text=f"KGE_DGM_Triangle_{variable_.get()}.tmp")
+
+            for export in exports:
+                tk.Radiobutton(frame3_2, text=export, variable=variable_, value=export, command=selection,).pack(anchor="w", padx=10, pady=5) 
+             
+
+            #-----------------------------------
+            # Level
+            # levelList,levelListIDs = GetLevelList()   
 
             level_label = tk.Label(frameHaupt, text="DGM auf Ebene: ")
             selected_level = tk.StringVar()
@@ -824,4 +1037,4 @@ if __name__ == '__main__':
             open_button.pack(side = "right", padx=20, pady=20)
 
             root.mainloop()
-            #'''
+           

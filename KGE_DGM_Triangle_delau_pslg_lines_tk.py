@@ -25,6 +25,8 @@ falls triangle oder scipy noch nicht installiert ist, MicroStation 2024 beenden 
 
 ## sonstiges: https://people.sc.fsu.edu/~jburkardt/c_src/triangle_shewchuk/triangle_shewchuk.html
 
+## utm reduktion: https://www.bfrvermessung.de/materialien-1/etrs89/utm-projektmassstab-und-planungskoordinatensystem
+
 
 '''
 
@@ -355,6 +357,11 @@ def plot_3d_ms2024(maschen_koordinaten_, mu_):
     global ACTIVEMODEL
     global selected_level
     global dgm_color
+    global g_1mu
+    global g_go    
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
     
     #dgnModel = ACTIVEMODEL.GetDgnModel()
     #dgnfile = dgnModel.GetDgnFile()
@@ -381,9 +388,9 @@ def plot_3d_ms2024(maschen_koordinaten_, mu_):
     summe_grund_fl = 0
     summe_ober_fl = 0
     volumen_ueber_0 = 0  
-    x_cad_ = []  
+    x_cad_ = [] 
     y_cad_ = [] 
-    z_cad_ = []    	
+    z_cad_ = [] 
     for masche in maschen_koordinaten_[:]:
         if ((masche[0][2] < z_min_limit) or (masche[1][2] < z_min_limit) or (masche[2][2] < z_min_limit)): continue
         test = createShapeElement(masche, mu_, levelId, dgm_color)
@@ -425,7 +432,11 @@ def createShapeElement(masche, mu_, level_id_, dgm_color_ ):
     global ACTIVEMODEL
     global selected_level
     global dgm_color
+    global g_1mu
     global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
 
     shape_eeh = EditElementHandle()
     #global origin
@@ -434,10 +445,15 @@ def createShapeElement(masche, mu_, level_id_, dgm_color_ ):
     # Set Shape coordinates
     points = DPoint3dArray()
         
-    points.append (DPoint3d (masche[0][0] * mu_ + g_go.x, masche[0][1] * mu_ + g_go.y, masche[0][2] * mu_ + g_go.z))
-    points.append (DPoint3d (masche[1][0] * mu_ + g_go.x, masche[1][1] * mu_ + g_go.y, masche[1][2] * mu_ + g_go.z))
-    points.append (DPoint3d (masche[2][0] * mu_ + g_go.x, masche[2][1] * mu_ + g_go.y, masche[2][2] * mu_ + g_go.z))
-    points.append (DPoint3d (masche[0][0] * mu_ + g_go.x, masche[0][1] * mu_ + g_go.y, masche[0][2] * mu_ + g_go.z))
+    #points.append (DPoint3d (masche[0][0] * mu_ + g_go.x, masche[0][1] * mu_ + g_go.y, masche[0][2] * mu_ + g_go.z))
+    #points.append (DPoint3d (masche[1][0] * mu_ + g_go.x, masche[1][1] * mu_ + g_go.y, masche[1][2] * mu_ + g_go.z))
+    #points.append (DPoint3d (masche[2][0] * mu_ + g_go.x, masche[2][1] * mu_ + g_go.y, masche[2][2] * mu_ + g_go.z))
+    #points.append (DPoint3d (masche[0][0] * mu_ + g_go.x, masche[0][1] * mu_ + g_go.y, masche[0][2] * mu_ + g_go.z))
+
+    points.append (DPoint3d (masche[0][0] * g_1mu + g_go.x, masche[0][1] * g_1mu + g_go.y, masche[0][2] * g_1mu + g_go.z))
+    points.append (DPoint3d (masche[1][0] * g_1mu + g_go.x, masche[1][1] * g_1mu + g_go.y, masche[1][2] * g_1mu + g_go.z))
+    points.append (DPoint3d (masche[2][0] * g_1mu + g_go.x, masche[2][1] * g_1mu + g_go.y, masche[2][2] * g_1mu + g_go.z))
+    points.append (DPoint3d (masche[0][0] * g_1mu + g_go.x, masche[0][1] * g_1mu + g_go.y, masche[0][2] * g_1mu + g_go.z))
 
     
     # Create Shape element
@@ -757,10 +773,25 @@ def item_selected():
 # punkte als tuple punkt.x, punkt.y, punkt.z
 # faktor fuer utm
 def strecke_2d_f(punkt_a, punkt_b, faktor ):
+    global faktor_projektion
+    global hoehen_werte
+    #faktor_projektion = ( (1.0 + ((ost_mittel_km - koord_meridian_km)**2)/(2.0 * radius_km**2)) * utm_faktor )
     dx_ = punkt_b[0] - punkt_a[0]
     dy_ = punkt_b[1] - punkt_a[1]
     #dz_ = punkt_b[2] - punkt_a[2]
     #print(dx_, dy_, dz_)
+    hoehen_korrektur = str(options_utm_hoehe.get())
+    
+    if utm_var.get() == True and hoehen_korrektur == hoehen_werte[0]:
+        utm_faktor = 0.9996
+        undulation_km = float(geoid_un_eingabe.get())/1000.0
+        radius_km = float(radius_eingabe.get())
+        if radius_km < 5000 or radius_km > 7000:radius_km = 6382
+        h_strecke_ellip_km = (punkt_a[2] + punkt_b[2])/2.0/1000.0 + undulation_km
+        faktor_hoehe_strecke = 1.0 - (h_strecke_ellip_km / radius_km)
+        faktor = 1.0 / (faktor_projektion - (h_strecke_ellip_km / radius_km) * utm_faktor)
+        #print(faktor)
+        
     s_2d = (dx_ * dx_ + dy_ * dy_ )**0.5
     s_2d_ = s_2d * faktor
     #print(s_2d_)
@@ -769,10 +800,24 @@ def strecke_2d_f(punkt_a, punkt_b, faktor ):
 # punkte als tuple punkt.x, punkt.y, punkt.z
 # faktor fuer 2d utm
 def strecke_3d_f(punkt_a, punkt_b, faktor):
+    global faktor_projektion
+    global hoehen_werte
     dx_ = punkt_b[0] - punkt_a[0]
     dy_ = punkt_b[1] - punkt_a[1]
     dz_ = punkt_b[2] - punkt_a[2]
     #print(dx_, dy_, dz_)
+    hoehen_korrektur = str(options_utm_hoehe.get())
+    
+    if utm_var.get() == True and hoehen_korrektur == hoehen_werte[0]:
+        utm_faktor = 0.9996
+        undulation_km = float(geoid_un_eingabe.get())/1000.0
+        radius_km = float(radius_eingabe.get())
+        if radius_km < 5000 or radius_km > 7000:radius_km = 6382
+        h_strecke_ellip_km = (punkt_a[2] + punkt_b[2])/2.0/1000.0 + undulation_km
+        faktor_hoehe_strecke = 1.0 - (h_strecke_ellip_km / radius_km)
+        faktor = 1.0 / (faktor_projektion - (h_strecke_ellip_km / radius_km) * utm_faktor)
+        #print(faktor) 
+        
     s_2d = (dx_ * dx_ + dy_ * dy_)**0.5
     s_2d_ = s_2d * faktor
     # z-werte ohne faktor
@@ -982,6 +1027,11 @@ def select_2_ElementsbyType_3_4():
    
 
 def exportElementsbyType_3_4():
+    global g_1mu
+    global g_go    
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu    
     koordinaten_liste_=[]
     ebenenId_selected = []
 
@@ -1053,6 +1103,11 @@ def exportElementsbyType_3_4():
 def export_2_ElementsbyType_3_4():
     flag_intervall = False
     global punkte_set
+    global g_1mu
+    global g_go    
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu    
     koordinaten_liste_=[]
     ebenenId_selected_ = []
 
@@ -1130,11 +1185,12 @@ def export_2_ElementsbyType_3_4():
                             #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu),(punkt_.y/g_1mu),(punkt_.z/g_1mu)))
                             #if flag_intervall == True:
                                 #koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu),(punkt_.y/g_1mu),(punkt_.z/g_1mu)))
-                        #print(g_go, g_go.x*-1/g_1mu, g_go.y*-1/g_1mu, g_go.z*-1/g_1mu)     
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go.x*-1/g_1mu),(start.y/g_1mu + g_go.y*-1/g_1mu),(start.z/g_1mu + g_go.z*-1/g_1mu)))
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go.x*-1/g_1mu), (end.y/g_1mu + g_go.y*-1/g_1mu), (end.z/g_1mu + g_go.z*-1/g_1mu)))
+                        #print(g_go, g_go.x*-1/g_1mu, g_go.y*-1/g_1mu, g_go.z*-1/g_1mu) 
+                        # g_go_x_mu, g_go_y_mu,g_go_z_mu    
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go_x_mu),(start.y/g_1mu + g_go_y_mu),(start.z/g_1mu + g_go_z_mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go_x_mu), (end.y/g_1mu + g_go_y_mu), (end.z/g_1mu + g_go_z_mu)))
                         if flag_intervall == True:
-                            zwischen_punkte = zwischenpunkte((start.x/g_1mu + g_go.x*-1/g_1mu, start.y/g_1mu + g_go.y*-1/g_1mu, start.z/g_1mu + g_go.z*-1/g_1mu), (end.x/g_1mu + g_go.x*-1/g_1mu, end.y/g_1mu + g_go.y*-1/g_1mu, end.z/g_1mu + g_go.z*-1/g_1mu), interval_2)
+                            zwischen_punkte = zwischenpunkte((start.x/g_1mu + g_go_x_mu, start.y/g_1mu + g_go_y_mu, start.z/g_1mu + g_go_z_mu), (end.x/g_1mu + g_go_x_mu, end.y/g_1mu + g_go_y_mu, end.z/g_1mu + g_go_z_mu), interval_2)
                             for punkt in zwischen_punkte:
                                 punkte_set.add(punkt)                       
                     if eleType == 4 and export_linestrings_var.get() == True:
@@ -1147,10 +1203,10 @@ def export_2_ElementsbyType_3_4():
                                 point_b = points[i+1]
                                 #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu),(point_a.y/g_1mu),(point_a.z/g_1mu)))
                                 #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu), (point_b.y/g_1mu), (point_b.z/g_1mu)))
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu + g_go.x*-1/g_1mu),(point_a.y/g_1mu + g_go.y*-1/g_1mu),(point_a.z/g_1mu + g_go.z*-1/g_1mu)))
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu + g_go.x*-1/g_1mu),(point_b.y/g_1mu + g_go.y*-1/g_1mu),(point_b.z/g_1mu + g_go.z*-1/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu + g_go_x_mu),(point_a.y/g_1mu + g_go_y_mu),(point_a.z/g_1mu + g_go_z_mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu + g_go_x_mu),(point_b.y/g_1mu + g_go_y_mu),(point_b.z/g_1mu + g_go_z_mu)))
                                 if flag_intervall == True:
-                                    zwischen_punkte = zwischenpunkte((point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu), (point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu), interval_2)
+                                    zwischen_punkte = zwischenpunkte((point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu), (point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu), interval_2)
                                     for punkt in zwischen_punkte:
                                         punkte_set.add(punkt)
                                         
@@ -1164,10 +1220,10 @@ def export_2_ElementsbyType_3_4():
                                 point_b = points[i+1]
                                 #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu),(point_a.y/g_1mu),(point_a.z/g_1mu)))
                                 #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu), (point_b.y/g_1mu), (point_b.z/g_1mu)))
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu + g_go.x*-1/g_1mu),(point_a.y/g_1mu + g_go.y*-1/g_1mu),(point_a.z/g_1mu + g_go.z*-1/g_1mu)))
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu + g_go.x*-1/g_1mu),(point_b.y/g_1mu + g_go.y*-1/g_1mu),(point_b.z/g_1mu + g_go.z*-1/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_a.x/g_1mu + g_go_x_mu),(point_a.y/g_1mu + g_go_y_mu),(point_a.z/g_1mu + g_go_z_mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((point_b.x/g_1mu + g_go_x_mu),(point_b.y/g_1mu + g_go_y_mu),(point_b.z/g_1mu + g_go_z_mu)))
                                 if flag_intervall == True:
-                                    zwischen_punkte = zwischenpunkte((point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu), (point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu), interval_2)
+                                    zwischen_punkte = zwischenpunkte((point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu), (point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu), interval_2)
                                     for punkt in zwischen_punkte:
                                         punkte_set.add(punkt) 
                                         
@@ -1182,10 +1238,10 @@ def export_2_ElementsbyType_3_4():
                             #print(i, teilung_, punkt_)
                             #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu),(punkt_.y/g_1mu),(punkt_.z/g_1mu)))
                             if flag_intervall == True:
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu + g_go.x*-1/g_1mu),(punkt_.y/g_1mu + g_go.y*-1/g_1mu),(punkt_.z/g_1mu + g_go.z*-1/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu + g_go_x_mu),(punkt_.y/g_1mu + g_go_y_mu),(punkt_.z/g_1mu + g_go_z_mu)))
                             
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go.x*-1/g_1mu),(start.y/g_1mu + g_go.y*-1/g_1mu),(start.z/g_1mu + g_go.z*-1/g_1mu)))
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go.x*-1/g_1mu), (end.y/g_1mu + g_go.y*-1/g_1mu), (end.z/g_1mu + g_go.z*-1/g_1mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go_x_mu),(start.y/g_1mu + g_go_y_mu),(start.z/g_1mu + g_go_z_mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go_x_mu), (end.y/g_1mu + g_go_y_mu), (end.z/g_1mu + g_go_z_mu)))
                         
                     if eleType == 27 and export_bsplines_var.get() == True:
                         #print('bspline')
@@ -1200,10 +1256,10 @@ def export_2_ElementsbyType_3_4():
                             #print(i, teilung_, punkt_)
                             #print(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu),(punkt_.y/g_1mu),(punkt_.z/g_1mu)))
                             if flag_intervall == True:
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu + g_go.x*-1/g_1mu),(punkt_.y/g_1mu + g_go.y*-1/g_1mu),(punkt_.z/g_1mu + g_go.z*-1/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu + g_go_x_mu),(punkt_.y/g_1mu + g_go_y_mu),(punkt_.z/g_1mu + g_go_z_mu)))
                             
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go.x*-1/g_1mu),(start.y/g_1mu + g_go.y*-1/g_1mu),(start.z/g_1mu + g_go.z*-1/g_1mu)))
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go.x*-1/g_1mu), (end.y/g_1mu + g_go.y*-1/g_1mu), (end.z/g_1mu + g_go.z*-1/g_1mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go_x_mu),(start.y/g_1mu + g_go_y_mu),(start.z/g_1mu + g_go_z_mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go_x_mu), (end.y/g_1mu + g_go_y_mu), (end.z/g_1mu + g_go_z_mu)))
                         
                     if (eleType == 12 or eleType == 14) and export_complex_var.get() == True: 
                         #print('complex chain')
@@ -1212,10 +1268,10 @@ def export_2_ElementsbyType_3_4():
                         for i, ele_ in enumerate(neue_punkte):
                             punkt_ = ele_.point
                             if flag_intervall == True:
-                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu + g_go.x*-1/g_1mu),(punkt_.y/g_1mu + g_go.y*-1/g_1mu),(punkt_.z/g_1mu + g_go.z*-1/g_1mu)))
+                                koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((punkt_.x/g_1mu + g_go_x_mu),(punkt_.y/g_1mu + g_go_y_mu),(punkt_.z/g_1mu + g_go_z_mu)))
                                 
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go.x*-1/g_1mu),(start.y/g_1mu + g_go.y*-1/g_1mu),(start.z/g_1mu + g_go.z*-1/g_1mu)))
-                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go.x*-1/g_1mu), (end.y/g_1mu + g_go.y*-1/g_1mu), (end.z/g_1mu + g_go.z*-1/g_1mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((start.x/g_1mu + g_go_x_mu),(start.y/g_1mu + g_go_y_mu),(start.z/g_1mu + g_go_z_mu)))
+                        koordinaten_liste_.append(" {0:.4f} , {1:.4f} , {2:.4f} ".format((end.x/g_1mu + g_go_x_mu), (end.y/g_1mu + g_go_y_mu), (end.z/g_1mu + g_go_z_mu)))
                             
                         
                         
@@ -1286,7 +1342,7 @@ def berechnung_loeschen():
     root.update_idletasks() 
     
 def berechnung_kopf():
-    # kopfzeilen
+    # kopfzeilen eintragen
     now = dt.datetime.now()
     datum = now.strftime('%d. %B %Y')
     zeit = now.strftime('%H:%M:%S')
@@ -1310,11 +1366,18 @@ def berechnung_kopf():
     root.update_idletasks()
   
 def berechnung_speichern():
+    #volumenberechnung protokoll speichern
     berechnung = file_text_vol.get('1.0', 'end-1c')
     file_save_3(berechnung)
       
 
 def select_3_ElementsbyType():
+    #dgn file scannen nach dgm maschen
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
     levelAnzahlMaschen=[]
     levelGrundFlaeche=[]
     levelVolumen=[]
@@ -1385,10 +1448,15 @@ def select_3_ElementsbyType():
                             point_c = points[2]
                             #print(g_go, g_go.x*-1/g_1mu, g_go.y*-1/g_1mu, g_go.z*-1/g_1mu)
                             #global origin muss beruecksichtigt werden
-                            punkt_a = [point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu]
-                            punkt_b = [point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu]
-                            punkt_c = [point_c.x/g_1mu + g_go.x*-1/g_1mu, point_c.y/g_1mu + g_go.y*-1/g_1mu, point_c.z/g_1mu + g_go.z*-1/g_1mu]
-                            
+                            #g_go_x_mu, g_go_y_mu, g_go_z_mu
+                            #punkt_a = [point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu]
+                            #punkt_b = [point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu]
+                            #punkt_c = [point_c.x/g_1mu + g_go.x*-1/g_1mu, point_c.y/g_1mu + g_go.y*-1/g_1mu, point_c.z/g_1mu + g_go.z*-1/g_1mu]
+
+                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
+                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
+                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
+                                                        
                             h_min = punkt_a[2]
                             h_max = punkt_a[2]
                             if punkt_b[2] < h_min: h_min = punkt_b[2]
@@ -1493,8 +1561,16 @@ def select_3_ElementsbyType():
     root.update_idletasks() 
 
 def dgm_volumen_berechnen():
-    ''' diverse Flaechen und Volumen berechnen '''
-    # keine ebene gewaehlt
+    #volumenberechnung fuer ausgewaehlte ebene
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    global faktor_projektion
+    global hoehen_werte
+    
+    # keine ebene gewaehlt, abbruch
     if len(tree_3.selection()) == 0: return
     
     ebenenId_selected_ = []
@@ -1517,6 +1593,7 @@ def dgm_volumen_berechnen():
         z_mittel_km = float(record[14])/1000.0
     
     faktor = 1.0000
+    faktor_projektion = 1.000
     if utm_var.get() == True:
         # utm koordinaten beruecksichtigen
         utm_faktor = 0.9996
@@ -1526,7 +1603,8 @@ def dgm_volumen_berechnen():
             radius_km = 6382
         #print(radius_km, ost_mittel_km)
         faktor_projektion = ( (1.0 + ((ost_mittel_km - koord_meridian_km)**2)/(2.0 * radius_km**2)) * utm_faktor )
-        undulation_km = float(geoid_un_eingabe.get())/1000
+        undulation_km = float(geoid_un_eingabe.get())/1000.0
+        #mittlere Hoehe Gebiet
         h_ellip_km = z_mittel_km + undulation_km
         faktor_hoehe = 1.0 - (h_ellip_km / radius_km)
         faktor = 1.0 / ( (1.0 + ((ost_mittel_km - koord_meridian_km)**2)/(2.0 * radius_km**2) - (h_ellip_km / radius_km)) * utm_faktor )
@@ -1577,10 +1655,15 @@ def dgm_volumen_berechnen():
                             point_c = points[2]
                             #print(g_go, g_go.x*-1/g_1mu, g_go.y*-1/g_1mu, g_go.z*-1/g_1mu)
                             #global origin muss beruecksichtigt werden
-                            punkt_a = [point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu]
-                            punkt_b = [point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu]
-                            punkt_c = [point_c.x/g_1mu + g_go.x*-1/g_1mu, point_c.y/g_1mu + g_go.y*-1/g_1mu, point_c.z/g_1mu + g_go.z*-1/g_1mu]
-                                                
+                            #g_go_x_mu, g_go_y_mu, g_go_z_mu
+                            #punkt_a = [point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu]
+                            #punkt_b = [point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu]
+                            #punkt_c = [point_c.x/g_1mu + g_go.x*-1/g_1mu, point_c.y/g_1mu + g_go.y*-1/g_1mu, point_c.z/g_1mu + g_go.z*-1/g_1mu]
+
+                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
+                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
+                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
+                                                                              
                             # sortiere nach z_wert
                               
                             if punkt_b[2] < punkt_a[2]:
@@ -1625,12 +1708,29 @@ def dgm_volumen_berechnen():
     
     epsilon = 1e-8
     
+    if utm_var.get() == True:
+        faktor_hoehe_masche_min = faktor_hoehe
+        faktor_hoehe_masche_max = faktor_hoehe
+        
+    hoehen_korrektur = str(options_utm_hoehe.get())
+    
     for masche_ in maschen:
         
         punkt_1 = masche_[0]
         punkt_2 = masche_[1]
         punkt_3 = masche_[2]
         
+        # Hoehenkorrektur Maschen Mittel
+        if utm_var.get() == True and (hoehen_korrektur == hoehen_werte[1] or hoehen_korrektur == hoehen_werte[0]) :
+            h_masche_ellip_km = (punkt_1[2] + punkt_2[2] + punkt_3[2])/3.0/1000 + undulation_km
+            faktor_hoehe_masche = 1.0 - (h_masche_ellip_km / radius_km)
+            #
+            faktor = 1.0 / ( (1.0 + ((ost_mittel_km - koord_meridian_km)**2)/(2.0 * radius_km**2) - (h_masche_ellip_km / radius_km)) * utm_faktor )
+            if faktor_hoehe_masche < faktor_hoehe_masche_min:
+                faktor_hoehe_masche_min = faktor_hoehe_masche
+            if faktor_hoehe_masche > faktor_hoehe_masche_max:
+                faktor_hoehe_masche_max = faktor_hoehe_masche
+
         seite_a1_ = strecke_2d_f(punkt_1, punkt_2, faktor)
         seite_b1_ = strecke_2d_f(punkt_2, punkt_3, faktor)
         seite_c1_ = strecke_2d_f(punkt_1, punkt_3, faktor)
@@ -1881,14 +1981,34 @@ def dgm_volumen_berechnen():
         file_text_vol.insert(tk.END, 'utm Korrektur wird beruecksichtigt'  + '\n')
         file_text_vol.insert(tk.END, '       m_0 ist                    : {0:_.4f}'.format(utm_faktor) + '\n')
         file_text_vol.insert(tk.END, 'mittlerer Kruemmungsradius in km  : {0:_.1f}'.format(radius_km) + '\n')
-        file_text_vol.insert(tk.END, '       x_mittel in km             : {0:_.3f}'.format(float(record[12])/1000) + '\n')
+        file_text_vol.insert(tk.END, '       x_mittel   in km           : {0:_.3f}'.format(float(record[12])/1000) + '\n')
         file_text_vol.insert(tk.END, '       utm zone                   : ' + str(utm_zone) + '\n')
         file_text_vol.insert(tk.END, 'mittlerer Ostwert in km           : {0:_.1f}'.format(ost_mittel_km) + '\n')
         file_text_vol.insert(tk.END, '       m_proj ist                 : {0:_.6f}'.format(faktor_projektion) + '\n')
-        file_text_vol.insert(tk.END, '       z_mittel in km             : {0:_.4f}'.format(z_mittel_km) + '\n')
+        file_text_vol.insert(tk.END, '       z_mittel   in km           : {0:_.4f}'.format(z_mittel_km) + '\n')
         file_text_vol.insert(tk.END, '       undulation in km           : {0:_.4f}'.format(undulation_km) + '\n')
-        file_text_vol.insert(tk.END, '       m_hoehe ist                : {0:_.6f}'.format(faktor_hoehe) + '\n')
-    file_text_vol.insert(tk.END, 'Massstabsfaktor ist               : {0:_.6f}'.format(faktor)  + '\n')
+        file_text_vol.insert(tk.END, '       m_hoehe gebiet ist         : {0:_.6f}'.format(faktor_hoehe) + '\n')
+        if hoehen_korrektur == hoehen_werte[0]:
+            file_text_vol.insert(tk.END, 'die Umkehrung Hoehenreduktion erfolgt fuer ' + str(hoehen_werte[0])+ '\n')
+            file_text_vol.insert(tk.END, '       m_hoehe_maschen_min ist    : {0:_.6f}'.format(faktor_hoehe_masche_min) + '\n')
+            file_text_vol.insert(tk.END, '       m_hoehe_maschen_max ist    : {0:_.6f}'.format(faktor_hoehe_masche_max) + '\n')
+            massstab_min = 1.0/(0.0 + faktor_projektion - (1.0 - faktor_hoehe_masche_min) * utm_faktor)
+            massstab_max = 1.0/(0.0 + faktor_projektion - (1.0 - faktor_hoehe_masche_max) * utm_faktor)
+            file_text_vol.insert(tk.END, ' Massstabsfaktor (Masche) max ist : {0:_.6f}'.format(massstab_min)  + '\n')
+            file_text_vol.insert(tk.END, ' Massstabsfaktor (Masche) min ist : {0:_.6f}'.format(massstab_max)  + '\n') 
+        elif hoehen_korrektur == hoehen_werte[1]:
+            file_text_vol.insert(tk.END, 'die Umkehrung Hoehenreduktion erfolgt fuer ' + str(hoehen_werte[1])+ '\n')
+            file_text_vol.insert(tk.END, '       m_hoehe_maschen_min ist    : {0:_.6f}'.format(faktor_hoehe_masche_min) + '\n')
+            file_text_vol.insert(tk.END, '       m_hoehe_maschen_max ist    : {0:_.6f}'.format(faktor_hoehe_masche_max) + '\n')
+            massstab_min = 1.0/(0.0 + faktor_projektion - (1.0 - faktor_hoehe_masche_min) * utm_faktor)
+            massstab_max = 1.0/(0.0 + faktor_projektion - (1.0 - faktor_hoehe_masche_max) * utm_faktor)
+            file_text_vol.insert(tk.END, ' Massstabsfaktor (Masche) max ist : {0:_.6f}'.format(massstab_min)  + '\n')
+            file_text_vol.insert(tk.END, ' Massstabsfaktor (Masche) min ist : {0:_.6f}'.format(massstab_max)  + '\n')            
+        else:
+            file_text_vol.insert(tk.END, 'die Umkehrung Hoehenreduktion erfolgt fuer ' + str(hoehen_werte[2])+ '\n')
+            file_text_vol.insert(tk.END, ' Massstabsfaktor (Gebiet) ist     : {0:_.6f}'.format(faktor)  + '\n')
+    if utm_var.get() != True:
+        file_text_vol.insert(tk.END, 'Massstabsfaktor ist               : {0:_.6f}'.format(faktor)  + '\n')
     file_text_vol.insert(tk.END, 'Abrechnungshoehe ist              : {0:_.8f}'.format(abr_hoehe)  + '\n')
     file_text_vol.insert(tk.END, 'Grundflaeche des DGM              : {0:_.3f}'.format(grundflaeche_aus_ges)  + '\n')
     file_text_vol.insert(tk.END, 'Oberflaeche  des DGM              : {0:_.3f}'.format(oberflaeche_aus_ges)  + '\n')
@@ -1912,6 +2032,9 @@ def get_intervall():
 
 def callback(selection):
     label_intervall.config(text=f"Punktabstand ist ca: {selection}")
+    
+def callback_hoehe(selection):
+    pass
 
 def koordinaten_leeren():
     global punkte_set
@@ -1930,7 +2053,10 @@ if __name__ == '__main__':
     global levelListIDs
     global farben_
     global punkte_set
-    
+    global faktor_projektion
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
     
     punkte_set=set()    # koordinaten zum export - keine doppelten
   
@@ -1943,6 +2069,10 @@ if __name__ == '__main__':
             g_go = modelInfo.GetGlobalOrigin()
             
             #print(g_go, g_go.x*-1/g_1mu, g_go.y*-1/g_1mu, g_go.z*-1/g_1mu)
+            
+            g_go_x_mu = g_go.x*-1/g_1mu
+            g_go_y_mu = g_go.y*-1/g_1mu
+            g_go_z_mu = g_go.z*-1/g_1mu
 
             dgnfile = dgnModel.GetDgnFile()
             
@@ -1970,18 +2100,22 @@ if __name__ == '__main__':
             frameExportLines = ttk.Frame(notebook, width=600, height=480)
             frameExportKoordinaten = ttk.Frame(notebook, width=600, height=480)
             frameVolumen = ttk.Frame(notebook, width=600, height=480)
+            frameHoehenlinien = ttk.Frame(notebook, width=600, height=480)
+
 
             frameHaupt.pack(fill='both', expand=True)
             frameFarben.pack(fill='both', expand=True)
             frameExportLines.pack(fill='both', expand=True)
             frameExportKoordinaten.pack(fill='both', expand=True)
             frameVolumen.pack(fill='both', expand=True)
+            frameHoehenlinien.pack(fill='both', expand=True)
 
             notebook.add(frameHaupt, text='  Hauptprogramm  ')
             notebook.add(frameFarben, text='  Farbpicker aus Colortable  ')
             notebook.add(frameExportLines, text='  Segmente exportieren - aussen, innen, loecher  ')
             notebook.add(frameExportKoordinaten, text='  Koordinaten exportieren  ')
             notebook.add(frameVolumen, text=' Volumenberechnung ')
+            notebook.add(frameHoehenlinien, text=' Hoehenlinien ')
 
             #------frameHaupt-------
             
@@ -2011,7 +2145,7 @@ if __name__ == '__main__':
             w_color.pack()
             
             color_button = tk.Button(frameHaupt, height=1, width=10, text = farben_[dgmColor], bg=farben_[dgmColor], command=select_tab)
-            color_button.pack(padx=20, pady=20)
+            color_button.pack(padx=20, pady=10)
             
             #--- FrameFarben - FrameFarben2  - colorpicker
             
@@ -2331,23 +2465,33 @@ if __name__ == '__main__':
             
             geoid_un_eingabe = tk.Entry(frame5_1_3)
             geoid_un_eingabe.insert(0,"43.0")
-            geoid_un_eingabe.grid(row=0, column=1, sticky='e')                                  
+            geoid_un_eingabe.grid(row=0, column=1, sticky='e') 
+            
+            utm_hoehen_label = tk.Label(frame5_1, text=" utm : Umkehrung Hoehenreduktion auf --> ")
+            utm_hoehen_label.grid(row=5, column=0, sticky='ns') 
+            
+            hoehen_werte = ('Hoehen-Mittel je Seite','Hoehen-Mittel je Masche','Hoehen-Mittel Gebiet') 
+            
+            options_utm_hoehe = tk.StringVar()
+            menu_utm_hoehe = tk.OptionMenu(frame5_1, options_utm_hoehe, *hoehen_werte)
+            menu_utm_hoehe.grid(sticky='e', row=5, column=0)
+            options_utm_hoehe.set(hoehen_werte[1])                                            
             
             button_11 = tk.Button(frame5_1, text='3. Volumen berechnen ', command=dgm_volumen_berechnen)
-            button_11.grid(row=5, column=0, ipadx=60, sticky='e') 
+            button_11.grid(row=6, column=0, ipadx=60, sticky='e') 
             button_11.config(state='disabled')                                                                                                                                   
-            
-            file_text_vol = scrolledtext.ScrolledText(frame5_1, wrap=tk.WORD, height=15, width=90)
-            file_text_vol.grid(row=6, column=0, pady=20, sticky='ns')  
-            
+
             button_12 = tk.Button(frame5_1, text='Berechnung loeschen ', command=berechnung_loeschen)
-            button_12.grid(row=5, column=0, ipadx=60, sticky='w')
+            button_12.grid(row=6, column=0, ipadx=60, sticky='w')
             
             button_13 = tk.Button(frame5_1, text='Kopfzeilen eintragen ', command=berechnung_kopf)
-            button_13.grid(row=5, column=0, ipadx=60, sticky='ns')  
+            button_13.grid(row=6, column=0, ipadx=60, sticky='ns')  
             
+            file_text_vol = scrolledtext.ScrolledText(frame5_1, wrap=tk.WORD, height=15, width=90)
+            file_text_vol.grid(row=7, column=0, pady=20, sticky='ns')  
+                        
             button_14 = tk.Button(frame5_1, text='Protokoll speichern ', command=berechnung_speichern)
-            button_14.grid(row=7, column=0, ipadx=60, sticky='ns')                         
+            button_14.grid(row=8, column=0, ipadx=60, sticky='ns')                         
                         
             
             #--- weiter FrameHaupt
@@ -2358,19 +2502,19 @@ if __name__ == '__main__':
             selected_level = tk.StringVar()
             selected_level.set(levelList[0])
             level_option = tk.OptionMenu(frameHaupt, selected_level, *levelList) 
-            level_label.pack(side= "left", padx=20, pady=20) 
-            level_option.pack(side= "left", padx=20, pady=20)
+            level_label.pack(side= "left", padx=20, pady=10) 
+            level_option.pack(side= "left", padx=20, pady=10)
 
 
             button_quit = tk.Button(frameHaupt,text='Programm beenden', command=root.destroy)
-            button_quit.pack(side = "right", padx=20, pady=20)
+            button_quit.pack(side = "right", padx=20, pady=10)
 
             button_undo_mark = tk.Button(frameHaupt, text='undo mark senden', command=undo_mark)  
-            button_undo_mark.pack(side = "right", padx=20, pady=20)
+            button_undo_mark.pack(side = "right", padx=20, pady=10)
             button_undo_mark.config(state='disabled')          
 
             open_button = tk.Button(frameHaupt, text="Im Programm fortfahren", command=main)
-            open_button.pack(side = "right", padx=20, pady=20)
+            open_button.pack(side = "right", padx=20, pady=10)
 
             root.mainloop()
            

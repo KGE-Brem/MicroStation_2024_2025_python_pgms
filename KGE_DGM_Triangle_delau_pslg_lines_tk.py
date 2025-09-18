@@ -10,15 +10,14 @@ from MSPyMstnPlatform import *
 
 
 '''
-falls triangle oder scipy noch nicht installiert ist, MicroStation 2024 beenden und scipy/triangle installieren
+falls triangle noch nicht installiert ist, MicroStation 2024 2025 beenden und triangle installieren
 - Eingabeaufforderung öffnen
 - Verzeichnis wechseln:
     cd C:/ProgramData/Bentley/PowerPlatformPython/python
-- richtiges Verzeichnis kontrollieren ! , danach eingeben, falls gewünscht:
-    python -m pip install scipy
-- triangle installieren:
+- richtiges Verzeichnis kontrollieren ! , danach eingeben:
     python -m pip install triangle
-                   https://pypi.org/project/triangle/
+- triangle wird installiert
+    siehe auch     https://pypi.org/project/triangle/
     documentation: https://rufat.be/triangle/
                    https://www.cs.cmu.edu/~quake/triangle.html
 - Microstation neu starten
@@ -27,7 +26,7 @@ falls triangle oder scipy noch nicht installiert ist, MicroStation 2024 beenden 
 
 ## utm reduktion: https://www.bfrvermessung.de/materialien-1/etrs89/utm-projektmassstab-und-planungskoordinatensystem
 
-
+## Python Beispiele: https://github.com/BentleySystems/MicroStationPython/tree/main/MSPythonSamples
 '''
 
 
@@ -482,6 +481,38 @@ def createShapeElement(masche, mu_, level_id_, dgm_color_ ):
 
     return True
 
+# hoehenlinie in CAD
+def createLineElement(punkt_von, punkt_nach, hl_ebene_id, color, style, weight):
+    global ACTIVEMODEL
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    
+    segment = DSegment3d(DPoint3d(punkt_von[0] * g_1mu + g_go.x, punkt_von[1] * g_1mu + g_go.y, punkt_von[2] * g_1mu + g_go.z),
+                         DPoint3d(punkt_nach[0] * g_1mu + g_go.x, punkt_nach[1] * g_1mu + g_go.y, punkt_nach[2] * g_1mu + g_go.z))
+    line_eeh = EditElementHandle()
+    
+    status = LineHandler.CreateLineElement(line_eeh, None, segment, dgnModel.Is3d(), dgnModel)
+
+    if BentleyStatus.eSUCCESS != status:
+        return False
+    
+    propertiesSetter = ElementPropertiesSetter()
+    propertiesSetter.SetColor(color)
+    propertiesSetter.SetLinestyle(style, None)
+    propertiesSetter.SetWeight(weight)
+    propertiesSetter.SetLevel(hl_ebene_id)
+    
+    propertiesSetter.Apply(line_eeh)        
+
+    # Add the line element to model
+    if BentleyStatus.eSUCCESS != line_eeh.AddToModel():
+        return False
+    
+    return True
+
 def main():
     
     file_text.delete("1.0", tk.END)
@@ -735,19 +766,73 @@ def lift_window(window):
 #tkinter sliderwert aendert sich
 def farbe_aendern(i):
     dgm_color = w_color.get()
-    color_button.config(text = farben_[dgm_color], bg=farben_[dgm_color])
+    #color_button.config(text = farben_[dgm_color], bg=farben_[dgm_color])
+    color_button.config(text = dgm_color, bg=farben_[dgm_color])
     farbe.config(bg=farben_[dgm_color], text = dgm_color)
     
 def farb_pick(k):
-    dgm_color = k
-    farbe.config(bg=farben_[dgm_color], text = dgm_color)
-    w_color.set(k)
+    global farbe_fuer
+    if farbe_fuer == 0:
+        dgm_color = k
+        farbe.config(bg=farben_[dgm_color], text = dgm_color)
+        w_color.set(k)
+    elif farbe_fuer == 1:
+        color_button_hl_0.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k)
+    elif farbe_fuer == 2:
+        color_button_hl_2.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k)
+    elif farbe_fuer == 3:
+        color_button_hl_3.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k)
+    elif farbe_fuer == 4:
+        color_button_hl_4.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k)                        
     
 def select_tab():
+    global farbe_fuer
+    farbe_fuer = 0
     notebook.select(frameFarben)
     
+def select_tab_h0():
+    global farbe_fuer
+    farbe_fuer = 1
+    #hl_0_Color = int(color_button_hl_0['text'])
+    hl_0_Color = int(color_button_hl_0.cget('text'))
+    farbe.config(bg=farben_[hl_0_Color], text = hl_0_Color)
+    notebook.select(frameFarben)
+    
+def select_tab_h2():
+    global farbe_fuer
+    farbe_fuer = 2
+    #hl_2_Color = int(color_button_hl_0['text'])
+    hl_2_Color = int(color_button_hl_2.cget('text'))
+    farbe.config(bg=farben_[hl_2_Color], text = hl_2_Color)
+    notebook.select(frameFarben) 
+    
+def select_tab_h3():
+    global farbe_fuer
+    farbe_fuer = 3
+    #hl_2_Color = int(color_button_hl_0['text'])
+    hl_3_Color = int(color_button_hl_3.cget('text'))
+    farbe.config(bg=farben_[hl_3_Color], text = hl_3_Color)
+    notebook.select(frameFarben) 
+    
+def select_tab_h4():
+    global farbe_fuer
+    farbe_fuer = 4
+    #hl_2_Color = int(color_button_hl_0['text'])
+    hl_4_Color = int(color_button_hl_4.cget('text'))
+    farbe.config(bg=farben_[hl_4_Color], text = hl_4_Color)
+    notebook.select(frameFarben)                
+    
 def select_tab_H():
-    notebook.select(frameHaupt)
+    global farbe_fuer
+    if farbe_fuer == 0:
+        notebook.select(frameHaupt)   # DGM
+    elif farbe_fuer == 1 or farbe_fuer == 2 or farbe_fuer == 3 or farbe_fuer == 4:
+        notebook.select(frameHoehenlinien)  # hoehenlinien
+    return
         
 def undo_mark():
     PyCadInputQueue.SendKeyin("undo mark")
@@ -2024,6 +2109,496 @@ def dgm_volumen_berechnen():
     file_text_vol.insert(tk.END, '\n')
     root.update_idletasks()    
     progressbar_1.stop()
+    
+def select_4_ElementsbyType():
+    #dgn file scannen nach dgm maschen
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    levelAnzahlMaschen=[]
+    #levelGrundFlaeche=[]
+    #levelVolumen=[]
+    #hoeheMittel=[]
+    hoeheMin=[]
+    hoeheMax=[]
+    #x_mittel=[]
+    #y_mittel=[]
+    #z_mittel=[]
+    #rechtsMin=[]
+    #rechtsMax=[]
+    #hochMin=[]
+    #hochMax=[]
+    for i in range(max(levelListIDs)+1):
+        levelAnzahlMaschen.append(0)
+        #levelGrundFlaeche.append(0)
+        #levelVolumen.append(0)
+        #hoeheMittel.append(0)
+        hoeheMin.append(0)
+        hoeheMax.append(0)
+        #x_mittel.append(0)
+        #y_mittel.append(0)
+        #z_mittel.append(0)
+        #rechtsMin.append(0)
+        #rechtsMax.append(0)
+        #hochMin.append(0)
+        #hochMax.append(0)
+
+    schritt = 2
+    progressbar_4.step(schritt)
+    root.update_idletasks()
+    anzahl = 0    
+    #Get active model
+    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
+    dgnModel = ACTIVEMODEL.GetDgnModel()
+    #name =  model.GetModelName()
+    #Get all graphical elements from the model
+    graphicalElements = dgnModel.GetGraphicElements()
+    
+
+    for perElementRef in graphicalElements:
+        elementId = perElementRef.GetElementId()
+        eeh = EditElementHandle(perElementRef, dgnModel)
+        eh = ElementHandle(perElementRef)
+
+        msElement = MSElement()
+        msElement = eeh.GetElement ()
+
+        isGraphics = msElement.ehdr.isGraphics
+        isInvisible = msElement.hdr.dhdr.props.b.invisible
+
+        if (isGraphics and not(isInvisible)):
+            eleType = eh.GetElementType()
+            levelId = msElement.ehdr.level
+            if (eleType == 6) :
+                curve = ICurvePathQuery.ElementToCurveVector(eh)
+                for element in curve:
+                    points = element.GetLineString()
+                    if len(points) == 4:
+                        if levelId in levelListIDs:
+                            levelAnzahlMaschen[levelId] = levelAnzahlMaschen[levelId] + 1
+                            masche = []
+                            punkt_a = []
+                            punkt_b = []
+                            punkt_c = []
+                            point_a = points[0]
+                            point_b = points[1]
+                            point_c = points[2]
+
+                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
+                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
+                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
+                                                        
+                            h_min = punkt_a[2]
+                            h_max = punkt_a[2]
+                            if punkt_b[2] < h_min: h_min = punkt_b[2]
+                            if punkt_c[2] < h_min: h_min = punkt_c[2]
+                            if punkt_b[2] > h_max: h_max = punkt_b[2]
+                            if punkt_c[2] > h_max: h_max = punkt_c[2]
+                            
+
+                            masche.append(punkt_a)
+                            masche.append(punkt_b)
+                            masche.append(punkt_c)
+
+                            if levelAnzahlMaschen[levelId] == 1:
+                                hoeheMin[levelId] = h_min
+                                hoeheMax[levelId] = h_max
+
+                                
+                            if h_min < hoeheMin[levelId]: hoeheMin[levelId] = h_min
+                            if h_max > hoeheMax[levelId]: hoeheMax[levelId] = h_max
+
+                            anzahl = anzahl + 1
+                            if anzahl % 1000 == 0:
+                                progressbar_4.step(schritt)
+                                root.update_idletasks()
+                            if anzahl % 45000 == 0:
+                                schritt = schritt * -1
+                        
+    # loesche alle items in treeview tree_3
+    all_root_items = tree_4.get_children()
+    tree_4.delete(*all_root_items)
+    root.update_idletasks()
+                              
+    # daten aktualisieren
+    ebenen = []
+    for i in range(len(levelListIDs)):
+        levelId_ = levelListIDs[i]
+        if levelAnzahlMaschen[levelId_] > 0:
+            #hoeheMittel = levelVolumen[levelId_] / levelGrundFlaeche[levelId_]
+            ebenen.append((levelList[i], levelListIDs[i], levelAnzahlMaschen[levelId_],
+              '{0:_.3f}'.format(hoeheMin[levelId_]),
+               '{0:_.3f}'.format(hoeheMax[levelId_]), '{0:_.3f}'.format(hoeheMax[levelId_] - hoeheMin[levelId_]) ))
+
+    # add data to the treeview
+    for ebene in ebenen:
+        tree_4.insert('', tk.END, values=ebene)
+    
+    # resize columns 
+    tree_4.column('anzahl_maschen_4',anchor='center', stretch=False, width=175, minwidth=100)   
+    tree_4.column('z_min_4',anchor='center', stretch=False, width=120, minwidth=50)
+    tree_4.column('z_max_4',anchor='center', stretch=False, width=120, minwidth=50)
+    tree_4.column('diff_z_4',anchor='center', stretch=False, width=120, minwidth=50)
+
+    progressbar_4.stop()
+    
+    #button_11.config(state='active')
+        
+    root.update_idletasks() 
+    
+def hoehenlinien_berechnen():
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    global faktor_projektion
+    global hoehenlinien
+    
+    # keine ebene gewaehlt, abbruch
+    if len(tree_4.selection()) == 0: return
+    
+    ebenenId_selected_ = []
+    ebeneDatensatz_selected_ = []
+    
+    maschen = []
+    hoehenlinien = []
+    
+    hoehen_intervall_1 = float(options_h_intervall.get())
+    
+    for selected_item in tree_4.selection():
+        item = tree_4.item(selected_item)
+        record = item['values']
+        id_=record[1]
+        ebenenId_selected_.append(id_)
+        ebeneDatensatz_selected_.append(record)
+        #print(record)
+        #print(id_)
+        
+
+    schritt = 2
+    progressbar_4.step(schritt)
+    root.update_idletasks()
+    anzahl = 0
+    
+    #Get active model
+    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
+    dgnModel = ACTIVEMODEL.GetDgnModel()
+    #name =  model.GetModelName()
+    #Get all graphical elements from the model
+    graphicalElements = dgnModel.GetGraphicElements()
+ 
+    for perElementRef in graphicalElements:
+        elementId = perElementRef.GetElementId()
+        eeh = EditElementHandle(perElementRef, dgnModel)
+        eh = ElementHandle(perElementRef)
+
+        msElement = MSElement()
+        msElement = eeh.GetElement ()
+
+        isGraphics = msElement.ehdr.isGraphics
+        isInvisible = msElement.hdr.dhdr.props.b.invisible
+
+        if (isGraphics and not(isInvisible)):
+            eleType = eh.GetElementType()
+            levelId = msElement.ehdr.level
+            if (eleType == 6) :
+                curve = ICurvePathQuery.ElementToCurveVector(eh)
+                for element in curve:
+                    points = element.GetLineString()
+                    if len(points) == 4:
+                        if levelId in ebenenId_selected_:
+                            hoehenlinie = []
+                            punkt_von = []
+                            punkt_nach = []
+                            masche = []
+                            punkt_a = []
+                            punkt_b = []
+                            punkt_c = []
+                            point_a = points[0]
+                            point_b = points[1]
+                            point_c = points[2]
+
+                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
+                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
+                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
+                                                                              
+                            # sortiere nach z_wert
+                              
+                            if punkt_b[2] < punkt_a[2]:
+                                punkt_temp = punkt_a
+                                punkt_a = punkt_b
+                                punkt_b = punkt_temp
+                                
+                            if punkt_c[2] < punkt_a[2]:
+                                punkt_temp = punkt_a
+                                punkt_a = punkt_c
+                                punkt_c = punkt_temp                                
+
+                            if punkt_c[2] < punkt_b[2]:
+                                punkt_temp = punkt_b
+                                punkt_b = punkt_c
+                                punkt_c = punkt_temp
+                            
+                                
+                            #masche.append(punkt_a)
+                            #masche.append(punkt_b)
+                            #masche.append(punkt_c)
+                            
+                            #maschen.append(masche)
+                            
+                            #hoehenlinien berechnen
+                            delta_x21 = punkt_b[0] - punkt_a[0]
+                            delta_y21 = punkt_b[1] - punkt_a[1]
+                            delta_z21 = punkt_b[2] - punkt_a[2]
+                            
+                            delta_x31 = punkt_c[0] - punkt_a[0]
+                            delta_y31 = punkt_c[1] - punkt_a[1]
+                            delta_z31 = punkt_c[2] - punkt_a[2]
+                            
+                            delta_x32 = punkt_c[0] - punkt_b[0]
+                            delta_y32 = punkt_c[1] - punkt_b[1]
+                            delta_z32 = punkt_c[2] - punkt_b[2]
+                            
+                            hoehe_start = int(punkt_a[2] / hoehen_intervall_1) * hoehen_intervall_1
+                            hoehe_start = hoehe_start - hoehen_intervall_1
+                            hoehe = hoehe_start
+                            
+                            # starthoehe festlegen
+                            while hoehe < punkt_a[2]:
+                                hoehe = hoehe + hoehen_intervall_1
+                                
+                            hoehe = round(hoehe, 4)
+                            
+                            # jetzt hoehenlinie bestimmen: [ hoehe, 1 ,[punkt_von] ,[punkt_nach]]
+                            # zuerst von unten von punkt_a bis punkt_b
+                            while hoehe <= punkt_b[2]:
+                                hoehenlinie = []
+                                if abs(delta_z31) >= 0.0001:
+                                    x_von = punkt_a[0] + delta_x31 * (hoehe - punkt_a[2]) / delta_z31
+                                    y_von = punkt_a[1] + delta_y31 * (hoehe - punkt_a[2]) / delta_z31
+                                    z_von = hoehe
+                                    punkt_von = [x_von, y_von, z_von]
+                                    hoehenlinie.append([hoehe, 1])
+                                    hoehenlinie.append(punkt_von)
+                                else:
+                                    punkt_von = punkt_a
+                                    hoehenlinie.append([hoehe, 1])
+                                    hoehenlinie.append(punkt_von)
+                                
+                                if abs(delta_z21) >= 0.0001:
+                                    x_nach = punkt_a[0] + delta_x21 * (hoehe - punkt_a[2]) / delta_z21
+                                    y_nach = punkt_a[1] + delta_y21 * (hoehe - punkt_a[2]) / delta_z21
+                                    z_nach = hoehe
+                                    punkt_nach = [x_nach, y_nach, z_nach]
+                                    hoehenlinie.append(punkt_nach)
+                                else:
+                                    punkt_nach = punkt_b
+                                    hoehenlinie.append(punkt_nach)
+                                    
+                                hoehenlinien.append(hoehenlinie)
+                                #hoehenlinie = []
+                                hoehe = hoehe + hoehen_intervall_1
+                                hoehe = round(hoehe, 4)
+                                
+                            while hoehe <= punkt_c[2]:
+                                hoehenlinie = []
+                                if abs(delta_z31) >= 0.0001:
+                                    x_von = punkt_a[0] + delta_x31 * (hoehe - punkt_a[2]) / delta_z31
+                                    y_von = punkt_a[1] + delta_y31 * (hoehe - punkt_a[2]) / delta_z31
+                                    z_von = hoehe
+                                    punkt_von = [x_von, y_von, z_von]
+                                    hoehenlinie.append([hoehe, 1])
+                                    hoehenlinie.append(punkt_von)
+                                else:                                
+                                    punkt_von = punkt_c
+                                    hoehenlinie.append([hoehe, 1])
+                                    hoehenlinie.append(punkt_von)
+                                
+                                if abs(delta_z32) >= 0.001:
+                                    x_nach = punkt_b[0] + delta_x32 * (hoehe - punkt_b[2]) / delta_z32
+                                    y_nach = punkt_b[1] + delta_y32 * (hoehe - punkt_b[2]) / delta_z32
+                                    z_nach = hoehe
+                                    punkt_nach = [x_nach, y_nach, z_nach]
+                                    hoehenlinie.append(punkt_nach)
+                                else:
+                                    punkt_nach = punkt_b
+                                    hoehenlinie.append(punkt_nach)
+                                    
+                                hoehenlinien.append(hoehenlinie)
+                                #hoehenlinie = []
+                                hoehe = hoehe + hoehen_intervall_1
+                                hoehe = round(hoehe, 4)
+                                
+                            #ende hoehenlinien berechnen
+
+                            anzahl = anzahl + 1
+                            if anzahl % 1000 == 0:
+                                progressbar_4.step(schritt)
+                                root.update_idletasks()
+                            if anzahl % 45000 == 0:
+                                schritt = schritt * -1  
+
+    hoehenlinien.sort()
+    
+    label_anz_hoehenlinien.config(text=' Anzahl Hoehenlinien (segmente): ' + str(len(hoehenlinien)))
+    
+    #print(hoehenlinien[0])
+    #print(hoehenlinien[1])
+    #print(hoehenlinien[2])  
+    #print(hoehenlinien[-1])    
+  
+    progressbar_4.stop()
+    
+    if len(hoehenlinien) > 0:
+        button_cad_hl.config(state='active')
+    else:
+        button_cad_hl.config(state='disabled')
+        
+    return    
+    
+def hoehenlinien_zeichnen():
+    global ACTIVEMODEL
+    global dgnModel
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    global levelList
+    global levelListIDs        
+    global hoehenlinien
+    
+    schritt = 2
+    progressbar_4.step(schritt)
+    root.update_idletasks()
+    anzahl = 0    
+    
+    for selected_item in tree_4.selection():
+        item = tree_4.item(selected_item)
+        record = item['values']
+        z_min_4 = float(record[3]) - float(options_h_intervall.get())
+        z_max_4 = float(record[4]) + float(options_h_intervall.get())
+        #ebenenId_selected_.append(id_)
+        #ebeneDatensatz_selected_.append(record)
+        
+    anzahl_linien = 0
+    
+    level_name = str(selected_level_hl.get())
+    levelID = 0
+    if level_name in levelList:
+        j = levelList.index(level_name)
+        levelId = levelListIDs[j]
+    hl_ebene_id = levelId
+    
+    hl_0_color = int(color_button_hl_0.cget('text'))
+    hl_2_color = int(color_button_hl_2.cget('text'))
+    hl_3_color = int(color_button_hl_3.cget('text'))
+    hl_4_color = int(color_button_hl_4.cget('text'))
+    
+    hl_0_style = int(options_strichart_hl_0.get())
+    hl_2_style = int(options_strichart_hl_2.get())
+    hl_3_style = int(options_strichart_hl_3.get())
+    hl_4_style = int(options_strichart_hl_4.get())
+    
+    hl_0_weight = int(options_strichbreite_hl_0.get())
+    hl_2_weight = int(options_strichbreite_hl_2.get())
+    hl_3_weight = int(options_strichbreite_hl_3.get())
+    hl_4_weight = int(options_strichbreite_hl_4.get())
+    
+    hl_2_intervall = int(options_intervall_hl_2.get()) * float(options_h_intervall.get())
+    hl_3_intervall = int(options_intervall_hl_3.get()) * float(options_h_intervall.get())
+    hl_4_intervall = int(options_intervall_hl_4.get()) * float(options_h_intervall.get())
+    
+    hoehen_hl_2 = []
+    hoehen_hl_3 = []
+    hoehen_hl_4 = []
+    
+    hoehe_start_2 = int(z_min_4 / hl_2_intervall) * hl_2_intervall
+    hoehe_start_3 = int(z_min_4 / hl_3_intervall) * hl_3_intervall
+    hoehe_start_4 = int(z_min_4 / hl_4_intervall) * hl_4_intervall
+    
+    hoehe = hoehe_start_2
+    hoehen_hl_2.append(hoehe)
+    while hoehe < z_max_4:
+        hoehe = hoehe + hl_2_intervall
+        hoehen_hl_2.append(hoehe)
+        
+    hoehe = hoehe_start_3
+    hoehen_hl_3.append(hoehe)
+    while hoehe < z_max_4:
+        hoehe = hoehe + hl_3_intervall
+        hoehen_hl_3.append(hoehe)
+        
+    hoehe = hoehe_start_4
+    hoehen_hl_4.append(hoehe)
+    while hoehe < z_max_4:
+        hoehe = hoehe + hl_4_intervall
+        hoehen_hl_4.append(hoehe)    
+
+    hl_typ = 1   #linien
+    if len(hoehenlinien) > 0:
+        PyCadInputQueue.SendKeyin("mark")
+        button2_undo_mark.config(state='active')
+        if hl_typ == 1:
+            for hoehenlinie in hoehenlinien:
+                anzahl_linien = anzahl_linien + 1
+                hoehe = hoehenlinie[0][0]
+                kennung =  hoehenlinie[0][1]
+                punkt_von = hoehenlinie[1]
+                punkt_nach = hoehenlinie[2]
+                color = hl_0_color
+                style = hl_0_style
+                weight = hl_0_weight
+                #if anzahl_linien == 1:
+                    #print(hoehe)
+                    #print(kennung)
+                    #print(punkt_von)
+                    #print(punkt_nach)
+                if zeichne_intervall_hl_2_var.get() == True: 
+                    if hoehe in hoehen_hl_2:
+                        color = hl_2_color
+                        style = hl_2_style
+                        weight = hl_2_weight
+                if zeichne_intervall_hl_3_var.get() == True: 
+                    if hoehe in hoehen_hl_3:
+                        color = hl_3_color
+                        style = hl_3_style
+                        weight = hl_3_weight
+                if zeichne_intervall_hl_4_var.get() == True: 
+                    if hoehe in hoehen_hl_4:
+                        color = hl_4_color
+                        style = hl_4_style
+                        weight = hl_4_weight
+                
+                test = createLineElement(punkt_von, punkt_nach, hl_ebene_id, color, style, weight)
+                
+                anzahl = anzahl + 1
+                if anzahl % 1000 == 0:
+                    progressbar_4.step(schritt)
+                    root.update_idletasks()
+                if anzahl % 45000 == 0:
+                    schritt = schritt * -1                
+                
+            #print(anzahl_linien)
+            #print(hl_ebene_id)
+            #print(hl_0_color, hl_2_color, hl_3_color, hl_4_color)
+            #print(hl_0_style, hl_2_style, hl_3_style, hl_4_style)
+            #print(hl_0_weight, hl_2_weight, hl_3_weight, hl_4_weight)
+            #print(z_min_4, z_max_4)
+            #print(hl_2_intervall, hl_3_intervall, hl_4_intervall)
+            #print(hoehen_hl_2, hoehen_hl_3, hoehen_hl_4)
+            #print(color, style, weight)
+            progressbar_4.stop()
+        elif hl_typ == 2:
+            return
+            
+        elif hl_typ == 3:
+            return
+    
+    return    
 
 # 2 funktionen fuer zwischenpunkte - punktabstand
 def get_intervall():
@@ -2033,8 +2608,19 @@ def get_intervall():
 def callback(selection):
     label_intervall.config(text=f"Punktabstand ist ca: {selection}")
     
-def callback_hoehe(selection):
-    pass
+def callback_hoehe_hl1(selection):
+    label_intervall_h2.config(text=" = " + str(int(options_intervall_hl_2.get()) * float(options_h_intervall.get())) + "  ")
+    label_intervall_h3.config(text=" = " + str(int(options_intervall_hl_3.get()) * float(options_h_intervall.get())) + "  ")    
+    label_intervall_h4.config(text=" = " + str(int(options_intervall_hl_4.get()) * float(options_h_intervall.get())) + "  ")
+    
+def callback_hoehe_hl2(selection):
+    label_intervall_h2.config(text=" = " + str(int(options_intervall_hl_2.get()) * float(options_h_intervall.get())) + "  ")
+
+def callback_hoehe_hl3(selection):
+    label_intervall_h3.config(text=" = " + str(int(options_intervall_hl_3.get()) * float(options_h_intervall.get())) + "  ")
+
+def callback_hoehe_hl4(selection):
+    label_intervall_h4.config(text=" = " + str(int(options_intervall_hl_4.get()) * float(options_h_intervall.get())) + "  ")
 
 def koordinaten_leeren():
     global punkte_set
@@ -2052,13 +2638,17 @@ if __name__ == '__main__':
     global levelList
     global levelListIDs
     global farben_
+    global farbe_fuer
     global punkte_set
     global faktor_projektion
     global g_go_x_mu
     global g_go_y_mu
     global g_go_z_mu
+    global hoehenlinien
     
     punkte_set=set()    # koordinaten zum export - keine doppelten
+    
+    farbe_fuer = 0  # fuer DGM
   
     # Get the active DGN model reference
     ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
@@ -2144,7 +2734,8 @@ if __name__ == '__main__':
             w_color.set(dgmColor)
             w_color.pack()
             
-            color_button = tk.Button(frameHaupt, height=1, width=10, text = farben_[dgmColor], bg=farben_[dgmColor], command=select_tab)
+            #color_button = tk.Button(frameHaupt, height=1, width=10, text = farben_[dgmColor], bg=farben_[dgmColor], command=select_tab)
+            color_button = tk.Button(frameHaupt, height=1, width=10, text = dgmColor, bg=farben_[dgmColor], command=select_tab)
             color_button.pack(padx=20, pady=10)
             
             #--- FrameFarben - FrameFarben2  - colorpicker
@@ -2491,9 +3082,269 @@ if __name__ == '__main__':
             file_text_vol.grid(row=7, column=0, pady=20, sticky='ns')  
                         
             button_14 = tk.Button(frame5_1, text='Protokoll speichern ', command=berechnung_speichern)
-            button_14.grid(row=8, column=0, ipadx=60, sticky='ns')                         
-                        
+            button_14.grid(row=8, column=0, ipadx=60, sticky='ns') 
             
+            #-------- frame Hoehenlinien
+            frame6_1 = ttk.Frame(master=frameHoehenlinien)
+            frame6_2 = ttk.Frame(master=frameHoehenlinien)
+            frame6_1.pack(pady=20)
+            frame6_2.pack(pady=20) 
+            
+            #- define columns
+            columns_4 = ('level_name_4', 'level_id_4', 'anzahl_maschen_4',
+             'z_min_4', 'z_max_4', 'diff_z_4')
+
+            tree_4 = ttk.Treeview(frame6_1, columns=columns_4, show='headings', selectmode="browse")  # nur ein DGM kann selektiert werden
+            
+            # define headings 
+            tree_4.column('level_name_4',anchor='center', stretch=False, width=200, minwidth=200)
+            tree_4.heading('level_name_4', text='Level Name')
+            tree_4.column('level_id_4',anchor='center', stretch=False, width=120, minwidth=75)
+            tree_4.heading('level_id_4', text='Level ID')
+            tree_4.column('anzahl_maschen_4',anchor='center', stretch=False, width=150, minwidth=100)
+            tree_4.heading('anzahl_maschen_4', text='Anz. Maschen') 
+            tree_4.column('z_min_4',anchor='center', stretch=False, width=150, minwidth=50)
+            tree_4.heading('z_min_4', text='z min')
+            tree_4.column('z_max_4',anchor='center', stretch=False, width=150, minwidth=50)
+            tree_4.heading('z_max_4', text='z max')                                                
+            tree_4.column('diff_z_4',anchor='center', stretch=False, width=150, minwidth=50)
+            tree_4.heading('diff_z_4', text='z differenz') 
+
+            # ebenen eintragen
+            for ebene in ebenen:
+                tree_4.insert('', tk.END, values=ebene)
+
+            tree_4.grid(row=0, column=0, sticky='nsew')
+                                                                                 
+            # add scrollbars
+            scrollbar_4 = ttk.Scrollbar(frame6_1, orient=tk.VERTICAL, command=tree_4.yview)
+            tree_4.configure(yscrollcommand=scrollbar_4.set)
+            scrollbar_4.grid(row=0, column=1, sticky='ns') 
+
+            scrollbar_hor_4 = ttk.Scrollbar(frame6_1, orient=tk.HORIZONTAL, command=tree_4.xview)
+            tree_4.configure(xscrollcommand=scrollbar_hor_4.set)
+            scrollbar_hor_4.grid(row=1, column=0, sticky='ew')             
+            
+            progressbar_4 = ttk.Progressbar(frame6_1, orient=tk.HORIZONTAL, length=600, mode="determinate")
+            progressbar_4.grid(row=2, column=0, sticky='e') 
+            
+            button_15 = tk.Button(frame6_1, text='1. Zeichnung scannen (Maschen)', command=select_4_ElementsbyType)
+            button_15.grid(row=2, column=0, ipadx=30, sticky='w')
+            
+            frame6_1_1 = ttk.Frame(master=frame6_1)
+            frame6_1_1.grid(sticky='w', row=3, column=0) 
+            
+            label_hoehl = tk.Label(frame6_1_1,text='       2. Ebene markieren      danach -> ')
+            label_hoehl.grid(row=0, column=0,pady = 10, sticky='ns')            
+
+            label_hoehl_intervall = tk.Label(frame6_1_1, text=' Hoehenlinien Grundintervall auswaehlen :  ')
+            label_hoehl_intervall.grid(row=0, column=1, sticky='ns')                      
+            
+            h_intervall_werte = ('0.05','0.10','0.20', '0.25', '0.50', '1.00', '2.00', '2.50', '5.00', '10.00', '12.50', '20.00', '25.00', '50.00', '100.00')
+
+            options_h_intervall = tk.StringVar()
+            menu_intervall = tk.OptionMenu(frame6_1_1, options_h_intervall, *h_intervall_werte, command = callback_hoehe_hl1)
+            menu_intervall.grid(row=0, column=2, sticky='e')
+            options_h_intervall.set(h_intervall_werte[5])
+
+            label_hoehl_dgm = tk.Label(frame6_1_1, text=' DGM fuer alle Hoehenlinien auswaehlen :  ')
+            label_hoehl_dgm.grid(row=0, column=3, sticky='ns')
+            
+            selected_level_hl = tk.StringVar()
+            selected_level_hl.set(levelList[0])
+            hl_level_option = tk.OptionMenu(frame6_1_1, selected_level_hl, *levelList) 
+            hl_level_option.grid(row=0, column=4, sticky='e')
+            
+            stricharten_werte = ('0', '1', '2', '3', '4', '5', '6', '7')
+            strichbreiten_werte = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10')
+            intervall_vielfaches = ('1', '2', '4', '5', '8', '10', '20', '25', '40', '50', '100') 
+            
+            frame7_1_1 = ttk.Frame(master=frame6_1)
+            frame7_1_1.grid(sticky='w', row=4, column=0) 
+            
+            label_fabe_hl_0 = tk.Label(frame7_1_1,text='Fuer Grundintervall einstellen: Farbe:')
+            label_fabe_hl_0.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            hl_0_Color = 9
+           
+            color_button_hl_0 = tk.Button(frame7_1_1, height=1, width=10, text = hl_0_Color, bg=farben_[hl_0_Color], command=select_tab_h0)
+            color_button_hl_0.grid(row=0, column=1,pady = 10, sticky='e')                       
+
+            label_strichart_hl_0 = tk.Label(frame7_1_1, text='     Strichart :  ')
+            label_strichart_hl_0.grid(row=0, column=2, sticky='w')                      
+            
+            options_strichart_hl_0 = tk.StringVar()
+            options_strichart_hl_0.set(stricharten_werte[0]) 
+            strichart_hl_0_option = tk.OptionMenu(frame7_1_1, options_strichart_hl_0, *stricharten_werte) 
+            strichart_hl_0_option.grid(row=0, column=3, sticky='e')
+            
+
+            label_strichbreite_hl_0 = tk.Label(frame7_1_1, text='     Strichbreite :  ')
+            label_strichbreite_hl_0.grid(row=0, column=4, sticky='w')             
+
+            options_strichbreite_hl_0 = tk.StringVar()
+            options_strichbreite_hl_0.set(strichbreiten_werte[0]) 
+            strichbreite_hl_0_option = tk.OptionMenu(frame7_1_1, options_strichbreite_hl_0, *strichbreiten_werte) 
+            strichbreite_hl_0_option.grid(row=0, column=5, sticky='e')         
+            
+            # ---------------------------------------------------                                                           
+                     
+            frame8_1_1 = ttk.Frame(master=frame6_1)
+            frame8_1_1.grid(sticky='w', row=5, column=0) 
+            
+            label_fabe_hl_2 = tk.Label(frame8_1_1,text='Fuer       2. Intervall einstellen: Farbe:')
+            label_fabe_hl_2.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            hl_2_Color = 10
+           
+            color_button_hl_2 = tk.Button(frame8_1_1, height=1, width=10, text = hl_2_Color, bg=farben_[hl_2_Color], command=select_tab_h2)
+            color_button_hl_2.grid(row=0, column=1,pady = 10, sticky='e')                       
+
+            label_strichart_hl_2 = tk.Label(frame8_1_1, text='     Strichart :  ')
+            label_strichart_hl_2.grid(row=0, column=2, sticky='w')                      
+            
+            options_strichart_hl_2 = tk.StringVar()
+            options_strichart_hl_2.set(stricharten_werte[0]) 
+            strichart_hl_2_option = tk.OptionMenu(frame8_1_1, options_strichart_hl_2, *stricharten_werte) 
+            strichart_hl_2_option.grid(row=0, column=3, sticky='e')
+            
+            label_strichbreite_hl_2 = tk.Label(frame8_1_1, text='     Strichbreite :  ')
+            label_strichbreite_hl_2.grid(row=0, column=4, sticky='w')             
+
+            options_strichbreite_hl_2 = tk.StringVar()
+            options_strichbreite_hl_2.set(strichbreiten_werte[1]) 
+            strichbreite_hl_2_option = tk.OptionMenu(frame8_1_1, options_strichbreite_hl_2, *strichbreiten_werte) 
+            strichbreite_hl_2_option.grid(row=0, column=5, sticky='e')  
+            
+            label_intervall_multi_hl_2 = tk.Label(frame8_1_1, text='     Grundintervall mal:  ')
+            label_intervall_multi_hl_2.grid(row=0, column=6, sticky='w')  
+            
+            options_intervall_hl_2 = tk.StringVar()
+            options_intervall_hl_2.set(intervall_vielfaches[3])
+            intervall_multi_hl_2_option = tk.OptionMenu(frame8_1_1, options_intervall_hl_2, *intervall_vielfaches, command=callback_hoehe_hl2)
+            intervall_multi_hl_2_option.grid(row=0, column=7, sticky='e')
+
+            label_intervall_h2 = tk.Label(frame8_1_1,text="   = " + str(int(options_intervall_hl_2.get()) * float(options_h_intervall.get())) + "  ")
+            label_intervall_h2.grid(sticky='ns', row=0, column=8)              
+            
+            zeichne_intervall_hl_2_var = tk.BooleanVar(value=False) 
+            checkbox_hl_2_cad = ttk.Checkbutton(frame8_1_1,text='  in CAD zeichnen?', variable=zeichne_intervall_hl_2_var)  
+            checkbox_hl_2_cad.grid(row=0, column=9, sticky='e')      
+
+            # ---------------------------------------------------
+                     
+            frame9_1_1 = ttk.Frame(master=frame6_1)
+            frame9_1_1.grid(sticky='w', row=6, column=0) 
+            
+            label_fabe_hl_3 = tk.Label(frame9_1_1,text='Fuer       3. Intervall einstellen: Farbe:')
+            label_fabe_hl_3.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            hl_3_Color = 11
+           
+            color_button_hl_3 = tk.Button(frame9_1_1, height=1, width=10, text = hl_3_Color, bg=farben_[hl_3_Color], command=select_tab_h3)
+            color_button_hl_3.grid(row=0, column=1,pady = 10, sticky='e')                       
+
+            label_strichart_hl_3 = tk.Label(frame9_1_1, text='     Strichart :  ')
+            label_strichart_hl_3.grid(row=0, column=2, sticky='w')                      
+            
+            options_strichart_hl_3 = tk.StringVar()
+            options_strichart_hl_3.set(stricharten_werte[0]) 
+            strichart_hl_3_option = tk.OptionMenu(frame9_1_1, options_strichart_hl_3, *stricharten_werte) 
+            strichart_hl_3_option.grid(row=0, column=3, sticky='e')
+            
+            label_strichbreite_hl_3 = tk.Label(frame9_1_1, text='     Strichbreite :  ')
+            label_strichbreite_hl_3.grid(row=0, column=4, sticky='w')             
+
+            options_strichbreite_hl_3 = tk.StringVar()
+            options_strichbreite_hl_3.set(strichbreiten_werte[2]) 
+            strichbreite_hl_3_option = tk.OptionMenu(frame9_1_1, options_strichbreite_hl_3, *strichbreiten_werte) 
+            strichbreite_hl_3_option.grid(row=0, column=5, sticky='e')  
+            
+            label_intervall_multi_hl_3 = tk.Label(frame9_1_1, text='     Grundintervall mal:  ')
+            label_intervall_multi_hl_3.grid(row=0, column=6, sticky='w')  
+            
+            options_intervall_hl_3 = tk.StringVar()
+            options_intervall_hl_3.set(intervall_vielfaches[5])
+            intervall_multi_hl_3_option = tk.OptionMenu(frame9_1_1, options_intervall_hl_3, *intervall_vielfaches, command=callback_hoehe_hl3)
+            intervall_multi_hl_3_option.grid(row=0, column=7, sticky='e')
+
+            label_intervall_h3 = tk.Label(frame9_1_1,text="   = " + str(int(options_intervall_hl_3.get()) * float(options_h_intervall.get())) + "  ")
+            label_intervall_h3.grid(sticky='ns', row=0, column=8)              
+            
+            zeichne_intervall_hl_3_var = tk.BooleanVar(value=False) 
+            checkbox_hl_3_cad = ttk.Checkbutton(frame9_1_1,text='  in CAD zeichnen?', variable=zeichne_intervall_hl_3_var)  
+            checkbox_hl_3_cad.grid(row=0, column=9, sticky='e')      
+
+            # ---------------------------------------------------            
+                     
+            frame10_1_1 = ttk.Frame(master=frame6_1)
+            frame10_1_1.grid(sticky='w', row=7, column=0) 
+            
+            label_fabe_hl_4 = tk.Label(frame10_1_1,text='Fuer       4. Intervall einstellen: Farbe:')
+            label_fabe_hl_4.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            hl_4_Color = 12
+           
+            color_button_hl_4 = tk.Button(frame10_1_1, height=1, width=10, text = hl_4_Color, bg=farben_[hl_4_Color], command=select_tab_h4)
+            color_button_hl_4.grid(row=0, column=1,pady = 10, sticky='e')                       
+
+            label_strichart_hl_4 = tk.Label(frame10_1_1, text='     Strichart :  ')
+            label_strichart_hl_4.grid(row=0, column=2, sticky='w')                      
+            
+            options_strichart_hl_4 = tk.StringVar()
+            options_strichart_hl_4.set(stricharten_werte[0]) 
+            strichart_hl_4_option = tk.OptionMenu(frame10_1_1, options_strichart_hl_4, *stricharten_werte) 
+            strichart_hl_4_option.grid(row=0, column=3, sticky='e')
+            
+            label_strichbreite_hl_4 = tk.Label(frame10_1_1, text='     Strichbreite :  ')
+            label_strichbreite_hl_4.grid(row=0, column=4, sticky='w')             
+
+            options_strichbreite_hl_4 = tk.StringVar()
+            options_strichbreite_hl_4.set(strichbreiten_werte[3]) 
+            strichbreite_hl_4_option = tk.OptionMenu(frame10_1_1, options_strichbreite_hl_4, *strichbreiten_werte) 
+            strichbreite_hl_4_option.grid(row=0, column=5, sticky='e')  
+            
+            label_intervall_multi_hl_4 = tk.Label(frame10_1_1, text='     Grundintervall mal:  ')
+            label_intervall_multi_hl_4.grid(row=0, column=6, sticky='w')  
+            
+            options_intervall_hl_4 = tk.StringVar()
+            options_intervall_hl_4.set(intervall_vielfaches[10])
+            intervall_multi_hl_4_option = tk.OptionMenu(frame10_1_1, options_intervall_hl_4, *intervall_vielfaches, command=callback_hoehe_hl4)
+            intervall_multi_hl_4_option.grid(row=0, column=7, sticky='e')
+
+            label_intervall_h4 = tk.Label(frame10_1_1,text="   = " + str(int(options_intervall_hl_4.get()) * float(options_h_intervall.get())) + "  ")
+            label_intervall_h4.grid(sticky='ns', row=0, column=8)              
+            
+            zeichne_intervall_hl_4_var = tk.BooleanVar(value=False) 
+            checkbox_hl_4_cad = ttk.Checkbutton(frame10_1_1,text='  in CAD zeichnen?', variable=zeichne_intervall_hl_4_var)  
+            checkbox_hl_4_cad.grid(row=0, column=9, sticky='e')      
+
+            # --------------------------------------------------- 
+            frame11_1_1 = ttk.Frame(master=frame6_1)
+            frame11_1_1.grid(sticky='w', row=8, column=0)             
+            
+            hl_berechnen_button = tk.Button(frame11_1_1, text="3. Hoehenlinien fuer Grundintervall berechnen", command=hoehenlinien_berechnen)
+            hl_berechnen_button.grid(row=0, column=0, pady = 10, sticky='w')  
+            
+            label_anz_hoehenlinien = tk.Label(frame11_1_1, text=' Anzahl Hoehenlinien (segmente): 0 ')
+            label_anz_hoehenlinien.grid(row=0, column=1, sticky='w') 
+            
+            # -----------------------------------------------------
+            
+            frame12_1_1 = ttk.Frame(master=frame6_1)
+            frame12_1_1.grid(sticky='w', row=9, column=0)
+            
+            button_cad_hl = tk.Button(frame12_1_1, text='4. Hoehenlinien in CAD zeichnen', command=hoehenlinien_zeichnen)  
+            button_cad_hl.grid(row=0, column=0, pady = 10, sticky='w')  
+            button_cad_hl.config(state='disabled')
+            
+            label_dummy_hl = tk.Label(frame12_1_1, text='             ')
+            label_dummy_hl.grid(row=0, column=1, sticky='w')                         
+            
+            button2_undo_mark = tk.Button(frame12_1_1, text='undo mark senden', command=undo_mark)  
+            button2_undo_mark.grid(row=0, column=2, pady = 10, sticky='e')  
+            button2_undo_mark.config(state='disabled')                                                       
+                      
             #--- weiter FrameHaupt
             # Level
             # levelList,levelListIDs = GetLevelList()   

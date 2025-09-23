@@ -10,7 +10,7 @@ from MSPyMstnPlatform import *
 
 
 '''
-falls triangle noch nicht installiert ist, MicroStation 2024 2025 beenden und triangle installieren
+falls triangle noch nicht installiert ist, MicroStation 2024 oder 2025 beenden und triangle installieren
 - Eingabeaufforderung öffnen
 - Verzeichnis wechseln:
     cd C:/ProgramData/Bentley/PowerPlatformPython/python
@@ -40,6 +40,9 @@ except:
 
 import re
 import numpy as np
+import collections
+import itertools
+
 
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
@@ -509,6 +512,42 @@ def createLineElement(punkt_von, punkt_nach, hl_ebene_id, color, style, weight):
 
     # Add the line element to model
     if BentleyStatus.eSUCCESS != line_eeh.AddToModel():
+        return False
+    
+    return True
+
+def createLineStringElement(punktliste, hl_ebene_id, color, style, weight):
+    global ACTIVEMODEL
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    
+    points = DPoint3dArray()
+    
+    for punkt in punktliste:
+        #print(punkt)
+        points.append(DPoint3d(punkt[0] * g_1mu + g_go.x, punkt[1] * g_1mu + g_go.y, punkt[2] * g_1mu + g_go.z))
+
+    linestring_eeh = EditElementHandle()
+    
+    #status = LineHandler.CreateLineElement(line_eeh, None, segment, dgnModel.Is3d(), dgnModel)
+    status = LineStringHandler.CreateLineStringElement(linestring_eeh, None, points, dgnModel.Is3d(), dgnModel)
+
+    if BentleyStatus.eSUCCESS != status:
+        return False
+    
+    propertiesSetter = ElementPropertiesSetter()
+    propertiesSetter.SetColor(color)
+    propertiesSetter.SetLinestyle(style, None)
+    propertiesSetter.SetWeight(weight)
+    propertiesSetter.SetLevel(hl_ebene_id)
+    
+    propertiesSetter.Apply(linestring_eeh)        
+
+    # Add the linestring element to model
+    if BentleyStatus.eSUCCESS != linestring_eeh.AddToModel():
         return False
     
     return True
@@ -2246,7 +2285,15 @@ def select_4_ElementsbyType():
     
     #button_11.config(state='active')
         
-    root.update_idletasks() 
+    root.update_idletasks()
+    
+def are_ident_points(punkt_a_, punkt_b_):
+    if abs(punkt_a_[0] - punkt_b_[0]) > 0.0001: return False
+    if abs(punkt_a_[1] - punkt_b_[1]) > 0.0001: return False
+    if abs(punkt_a_[2] - punkt_b_[2]) > 0.0001: return False
+    return True
+
+
     
 def hoehenlinien_berechnen():
     global g_1mu
@@ -2256,6 +2303,7 @@ def hoehenlinien_berechnen():
     global g_go_z_mu
     global faktor_projektion
     global hoehenlinien
+    global polylines
     
     # keine ebene gewaehlt, abbruch
     if len(tree_4.selection()) == 0: return
@@ -2265,6 +2313,7 @@ def hoehenlinien_berechnen():
     
     maschen = []
     hoehenlinien = []
+    polylines = []
     
     hoehen_intervall_1 = float(options_h_intervall.get())
     
@@ -2445,10 +2494,161 @@ def hoehenlinien_berechnen():
     
     label_anz_hoehenlinien.config(text=' Anzahl Hoehenlinien (segmente): ' + str(len(hoehenlinien)))
     
+    #gruppieren der Hoehenlinien nach Hoehenwert
+    #jede gruppe kann meherere Polylinien enthalten
+    puffer = []
+    hoehen_gruppen = itertools.groupby(hoehenlinien, key=lambda x: x[0])
+    for key, gruppe in hoehen_gruppen:
+        lines = list(gruppe)
+        #print(key, '--->',lines)
+        anzahl_1en = len(lines)
+        #print(f'{anzahl_1en = }')
+        #kennzeichen für neue polylinie in der gruppe suchen falls nach einem durchlauf noch linien mit kennung 1 vorhanden sind
+        neu = True
+        
+        while anzahl_1en > 0:
+            for i, linie in enumerate(lines[:]):
+                if linie[0][1] == 0: continue   #die linie ist bereits verarbeitet, also ueberspringen
+                if neu:
+                    punkte_dq = collections.deque([])
+                    punkt_vorne = lines[i][1]
+                    punkt_hinten = lines[i][2]
+                    punkte_dq.append(punkt_vorne)
+                    punkte_dq.append(punkt_hinten)
+                    lines[i][0][1] = 0  # kennung 0 = linie als verarbeitet markieren
+                    neu = False
+                    #print()
+                    #print(lines[i])
+                    #print()
+                    continue
+                idx = i + 0
+                #print(idx, linie)
+                #if linie[0][1] == 0: continue   #ist bereits verarbeitet
+                punkta = linie[1]
+                punktb = linie[2]    
+                #test fuer vorne anhaengen
+                test_1 = are_ident_points(punkt_vorne, punkta)
+                if test_1:
+                    punkte_dq.appendleft(punktb)
+                    punkt_vorne = punktb
+                    #print(f'{test_1 = }')
+                    lines[idx][0][1] = 0
+                    #print(lines[idx])
+                    continue        
+                test_2 = are_ident_points(punkt_vorne, punktb)
+                if test_2:
+                    punkte_dq.appendleft(punkta)
+                    punkt_vorne = punkta
+                    #print(f'{test_2 = }')
+                    lines[idx][0][1] = 0
+                    #print(lines[idx])
+                    continue        
+                #test fuer hinten anhaengen
+                test_3 = are_ident_points(punkt_hinten, punkta)
+                if test_3:
+                    punkte_dq.append(punktb)
+                    punkt_hinten = punktb
+                    #print(f'{test_3 = }')
+                    lines[idx][0][1] = 0
+                    #print(lines[idx])
+                    continue
+                test_4 = are_ident_points(punkt_hinten, punktb)
+                if test_4:
+                    punkte_dq.append(punkta)
+                    punkt_hinten = punkta
+                    #print(f'{test_4 = }')
+                    lines[idx][0][1] = 0
+                    #print(lines[idx])
+                    continue
+                #print(test_1, test_2, test_3, test_4)
+                
+            #print(punkte_dq)
+
+            if len(puffer) > 0:
+                for j,zeile in enumerate(puffer):
+                    #print('pufferzeile :',j, zeile)
+                    test=zeile[0][1]
+                    if test == 0: continue  # bereits verarbeitet
+                    liste_punkte = zeile[1]
+                    #print('puffer punkte in zeile :',j, liste_punkte)
+                    #print(type(liste_punkte))
+                    punkt_a = liste_punkte[0]
+                    punkt_b = liste_punkte[-1]
+                    #print('a=',punkt_a, 'b=',punkt_b, 'vo=',punkt_vorne,'hi=',punkt_hinten)
+                    #test fuer vorne anhaengen
+                    test_12 = are_ident_points(punkt_vorne, punkt_a)
+                    if test_12:
+                        punkte_dq.popleft()
+                        punkte_dq.extendleft(liste_punkte)
+                        punkt_vorne = punkt_b
+                        #print(f'{test_12 = }')
+                        puffer[j][0][1] = 0
+                        #print(puffer[j])
+                        continue
+                    test_22 = are_ident_points(punkt_vorne, punkt_b)
+                    if test_22:
+                        punkte_dq.popleft()
+                        #punkte_dq.extendleft(liste_punkte.reverse())
+                        punkte_dq.extendleft(liste_punkte[::-1])
+                        punkt_vorne = punkt_a
+                        #print(f'{test_22 = }')
+                        puffer[j][0][1] = 0
+                        #print(puffer[j])
+                        continue
+                    #test fuer hinten anhaengen
+                    test_32 = are_ident_points(punkt_hinten, punkt_a)
+                    if test_32:
+                        punkte_dq.pop()
+                        punkte_dq.extend(liste_punkte)
+                        punkt_hinten = punkt_b
+                        #print(f'{test_32 = }')
+                        puffer[j][0][1] = 0
+                        #print(puffer[j])
+                        continue
+                    test_42 = are_ident_points(punkt_hinten, punkt_b)
+                    if test_42:
+                        punkte_dq.pop()
+                        punkte_dq.extend(liste_punkte[::-1])
+                        punkt_hinten = punkt_a
+                        #print(f'{test_42 = }')
+                        puffer[j][0][1] = 0
+                        #print(puffer[j])
+                        continue                    
+
+            #polylines.append([key, list(punkte_dq)])
+            neu = True
+            
+            puffer.append([[key[0],2], list(punkte_dq)])
+            
+            #print('puffer = ',puffer)
+            #for k,zeile_ in enumerate(puffer):
+                #print('puffer zeile : ', k, zeile_, '\n')
+                
+            
+            zaehler_kennung_1 = 0
+            for line in lines:
+                if line[0][1] == 1:
+                    zaehler_kennung_1 = zaehler_kennung_1 + 1
+            #print(f' { zaehler_kennung_1 = }')
+            anzahl_1en = zaehler_kennung_1
+
+    for k,zeile_ in enumerate(puffer):
+        test=zeile_[0][1]
+        if test == 0: continue  # bereits verarbeitet
+        polylines.append(zeile_)
+       
+
+    #print(polylines)
+    #print()
+    #for polyline in polylines:
+    #    print(polyline)    
+    
     #print(hoehenlinien[0])
     #print(hoehenlinien[1])
     #print(hoehenlinien[2])  
-    #print(hoehenlinien[-1])    
+    #print(hoehenlinien[-1])
+    
+    label_anz_hoehenlinien.config(text=' Anzahl Hoehenlinien (segmente): ' + str(len(hoehenlinien)) + ' in Anzahl polylinien : ' + str(len(polylines)) )    
   
     progressbar_4.stop()
     
@@ -2470,6 +2670,7 @@ def hoehenlinien_zeichnen():
     global levelList
     global levelListIDs        
     global hoehenlinien
+    global polylines
     
     schritt = 2
     progressbar_4.step(schritt)
@@ -2485,6 +2686,7 @@ def hoehenlinien_zeichnen():
         #ebeneDatensatz_selected_.append(record)
         
     anzahl_linien = 0
+    anzahl_polylinien = 0
     
     level_name = str(selected_level_hl.get())
     levelID = 0
@@ -2538,7 +2740,8 @@ def hoehenlinien_zeichnen():
         hoehe = hoehe + hl_4_intervall
         hoehen_hl_4.append(hoehe)    
 
-    hl_typ = 1   #linien
+    #hl_typ = 1   #linien
+    hl_typ = 2   #linestrings
     if len(hoehenlinien) > 0:
         PyCadInputQueue.SendKeyin("mark")
         button2_undo_mark.config(state='active')
@@ -2593,11 +2796,53 @@ def hoehenlinien_zeichnen():
             #print(color, style, weight)
             progressbar_4.stop()
         elif hl_typ == 2:
-            return
+            for polylinie in polylines:
+                anzahl_polylinien = anzahl_polylinien + 1
+                hoehe = polylinie[0][0]
+                kennung =  polylinie[0][1]
+                punktliste = polylinie[1]
+                #if anzahl_polylinien < 3:
+                    #print(hoehe, kennung)
+                    #print(punktliste[0:3], '\n')
+                    #punkt=punktliste[0]
+                    #print(punkt)
+                color = hl_0_color
+                style = hl_0_style
+                weight = hl_0_weight
+
+                if zeichne_intervall_hl_2_var.get() == True: 
+                    if hoehe in hoehen_hl_2:
+                        color = hl_2_color
+                        style = hl_2_style
+                        weight = hl_2_weight
+                if zeichne_intervall_hl_3_var.get() == True: 
+                    if hoehe in hoehen_hl_3:
+                        color = hl_3_color
+                        style = hl_3_style
+                        weight = hl_3_weight
+                if zeichne_intervall_hl_4_var.get() == True: 
+                    if hoehe in hoehen_hl_4:
+                        color = hl_4_color
+                        style = hl_4_style
+                        weight = hl_4_weight
+                
+                test = createLineStringElement(punktliste, hl_ebene_id, color, style, weight)
+                
+                anzahl = anzahl + 1
+                if anzahl % 1000 == 0:
+                    progressbar_4.step(schritt)
+                    root.update_idletasks()
+                if anzahl % 45000 == 0:
+                    schritt = schritt * -1            
+            progressbar_4.stop()
             
         elif hl_typ == 3:
             return
-    
+        PyCadInputQueue.SendReset()
+        PyCadInputQueue.SendKeyin("FIT VIEW EXTENDED")
+        PyCommandState.StartDefaultCommand()
+
+        lift_window(root)    
     return    
 
 # 2 funktionen fuer zwischenpunkte - punktabstand
@@ -2645,6 +2890,7 @@ if __name__ == '__main__':
     global g_go_y_mu
     global g_go_z_mu
     global hoehenlinien
+    global polylines
     
     punkte_set=set()    # koordinaten zum export - keine doppelten
     

@@ -42,7 +42,7 @@ import re
 import numpy as np
 import collections
 import itertools
-
+import os
 
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
@@ -58,15 +58,15 @@ from tkinter import ttk
 
 
 def open_file_dialog():
-    file_ = filedialog.askopenfilename(title="1 von 4: Waehle Umringkanten - line segments", filetypes=[("Text files", "*.tmp"), ("All files", "*.*")])
+    file_ = filedialog.askopenfilename(initialdir = dgn_pfad, title="1 von 4: Waehle Umringkanten - line segments", filetypes=[("Text files", "*.tmp"), ("All files", "*.*")])
     return file_
 
 def open_file_dialog_2():
-    file_ = filedialog.askopenfilename(title="2. von 4. Waehle Innenkanten - line segments", filetypes=[("Text files", "*.tmp"), ("All files", "*.*")])
+    file_ = filedialog.askopenfilename(initialdir = dgn_pfad, title="2. von 4. Waehle Innenkanten - line segments", filetypes=[("Text files", "*.tmp"), ("All files", "*.*")])
     return file_
 
 def open_file_dialog_3():
-    file_ = filedialog.askopenfilename(title="4. von 4. Waehle Lochkoordinaten - line in holes", filetypes=[("Text files", "*.tmp"), ("All files", "*.*")])
+    file_ = filedialog.askopenfilename(initialdir = dgn_pfad, title="4. von 4. Waehle Lochkoordinaten - line in holes", filetypes=[("Text files", "*.tmp"), ("All files", "*.*")])
     return file_
 
 def daten_einlesen(datei):
@@ -77,15 +77,15 @@ def daten_einlesen(datei):
         return liste_local
 
 def open_files_dialog():
-    files_ = filedialog.askopenfilenames(title="3. von 4. Waehle eine oder mehrere Punktdateien - coordinates", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+    files_ = filedialog.askopenfilenames(initialdir = dgn_pfad, title="3. von 4. Waehle eine oder mehrere Punktdateien - coordinates", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
     return files_
 
 def open_files_dialog_from_ex():
-    files_ = filedialog.askopenfilenames(title="Waehle eine oder mehrere Koordinatendateien fuer den Import", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+    files_ = filedialog.askopenfilenames(initialdir = dgn_pfad, title="Waehle eine oder mehrere Koordinatendateien fuer den Import", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
     return files_
 
 def file_save(koordinaten_):
-    f = filedialog.asksaveasfile(mode='w', initialfile = label_ex.cget('text'), defaultextension=".tmp")
+    f = filedialog.asksaveasfile(mode='w', initialdir = dgn_pfad, initialfile = label_ex.cget('text'), defaultextension=".tmp")
     if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
         return
     for zeile_ in koordinaten_:
@@ -93,7 +93,7 @@ def file_save(koordinaten_):
     f.close() 
 
 def file_save_2(koordinaten_, nummer1_):
-    f = filedialog.asksaveasfile(mode='w', initialfile = label_ex_datei.cget('text'), defaultextension=".txt")
+    f = filedialog.asksaveasfile(mode='w', initialdir = dgn_pfad, initialfile = label_ex_datei.cget('text'), defaultextension=".txt")
     if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
         return
     nummer = nummer1_
@@ -104,7 +104,7 @@ def file_save_2(koordinaten_, nummer1_):
     f.close() 
     
 def file_save_3(text_):
-    f = filedialog.asksaveasfile(mode='w', initialfile = 'KGE_DGM_Volumenberechnung.txt', defaultextension=".txt")
+    f = filedialog.asksaveasfile(mode='w', initialdir = dgn_pfad, initialfile = 'KGE_DGM_Volumenberechnung.txt', defaultextension=".txt")
     if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
         return
     for zeile_ in text_:
@@ -550,6 +550,46 @@ def createLineStringElement(punktliste, hl_ebene_id, color, style, weight):
     if BentleyStatus.eSUCCESS != linestring_eeh.AddToModel():
         return False
     
+    return True
+
+def createBsplineElement(punktliste, hl_ebene_id, color, style, weight):
+    global ACTIVEMODEL
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    
+    points = DPoint3dArray()
+    
+    for punkt in punktliste:
+        #print(punkt)
+        points.append(DPoint3d(punkt[0] * g_1mu + g_go.x, punkt[1] * g_1mu + g_go.y, punkt[2] * g_1mu + g_go.z))
+    
+    # Set the points to draw curve.
+    curve = MSBsplineCurve.CreateFromPolesAndOrder(points, None, None, 3, False, False)
+    # Draw the curve based of the points.
+    ICurvePrimitive.CreateBsplineCurve(curve)
+    
+    bspLine_eeh = EditElementHandle()
+    
+    status = BSplineCurveHandler.CreateBSplineCurveElement(bspLine_eeh, None, curve, dgnModel.Is3d(), dgnModel)
+
+    if BentleyStatus.eSUCCESS != status:
+        return False
+
+    propertiesSetter = ElementPropertiesSetter()
+    propertiesSetter.SetColor(color)
+    propertiesSetter.SetLinestyle(style, None)
+    propertiesSetter.SetWeight(weight)
+    propertiesSetter.SetLevel(hl_ebene_id)
+    
+    propertiesSetter.Apply(bspLine_eeh)        
+
+    # Add the linestring element to model
+    if BentleyStatus.eSUCCESS != bspLine_eeh.AddToModel():
+        return False
+
     return True
 
 def main():
@@ -1502,6 +1542,8 @@ def select_3_ElementsbyType():
     global g_go_x_mu
     global g_go_y_mu
     global g_go_z_mu
+    global maschen_eines_levels
+    maschen_eines_levels=[]
     levelAnzahlMaschen=[]
     levelGrundFlaeche=[]
     levelVolumen=[]
@@ -1516,6 +1558,7 @@ def select_3_ElementsbyType():
     hochMin=[]
     hochMax=[]
     for i in range(max(levelListIDs)+1):
+        maschen_eines_levels.append([])
         levelAnzahlMaschen.append(0)
         levelGrundFlaeche.append(0)
         levelVolumen.append(0)
@@ -1605,6 +1648,8 @@ def select_3_ElementsbyType():
                             masche.append(punkt_a)
                             masche.append(punkt_b)
                             masche.append(punkt_c)
+                            
+                            maschen_eines_levels[levelId].append(masche)
 
                             fl_grund = abs(triangle_det_2d(masche))
                             volumen_ueber_0 = fl_grund * ((masche[0][2] + masche[1][2] + masche[2][2]) / 3.0)
@@ -1684,7 +1729,9 @@ def select_3_ElementsbyType():
         
     root.update_idletasks() 
 
-def dgm_volumen_berechnen():
+
+
+def dgm_volumen_berechnen_2():
     #volumenberechnung fuer ausgewaehlte ebene
     global g_1mu
     global g_go
@@ -1693,6 +1740,7 @@ def dgm_volumen_berechnen():
     global g_go_z_mu
     global faktor_projektion
     global hoehen_werte
+    global maschen_eines_levels
     
     # keine ebene gewaehlt, abbruch
     if len(tree_3.selection()) == 0: return
@@ -1743,81 +1791,42 @@ def dgm_volumen_berechnen():
     root.update_idletasks()
     anzahl = 0
     
-    #Get active model
-    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
-    dgnModel = ACTIVEMODEL.GetDgnModel()
-    #name =  model.GetModelName()
-    #Get all graphical elements from the model
-    graphicalElements = dgnModel.GetGraphicElements()
- 
-    for perElementRef in graphicalElements:
-        elementId = perElementRef.GetElementId()
-        eeh = EditElementHandle(perElementRef, dgnModel)
-        eh = ElementHandle(perElementRef)
-
-        msElement = MSElement()
-        msElement = eeh.GetElement ()
-
-        isGraphics = msElement.ehdr.isGraphics
-        isInvisible = msElement.hdr.dhdr.props.b.invisible
-
-        if (isGraphics and not(isInvisible)):
-            eleType = eh.GetElementType()
-            levelId = msElement.ehdr.level
-            if (eleType == 6) :
-                curve = ICurvePathQuery.ElementToCurveVector(eh)
-                for element in curve:
-                    points = element.GetLineString()
-                    if len(points) == 4:
-                        if levelId in ebenenId_selected_:
-                            masche = []
-                            punkt_a = []
-                            punkt_b = []
-                            punkt_c = []
-                            point_a = points[0]
-                            point_b = points[1]
-                            point_c = points[2]
-                            #print(g_go, g_go.x*-1/g_1mu, g_go.y*-1/g_1mu, g_go.z*-1/g_1mu)
-                            #global origin muss beruecksichtigt werden
-                            #g_go_x_mu, g_go_y_mu, g_go_z_mu
-                            #punkt_a = [point_a.x/g_1mu + g_go.x*-1/g_1mu, point_a.y/g_1mu + g_go.y*-1/g_1mu, point_a.z/g_1mu + g_go.z*-1/g_1mu]
-                            #punkt_b = [point_b.x/g_1mu + g_go.x*-1/g_1mu, point_b.y/g_1mu + g_go.y*-1/g_1mu, point_b.z/g_1mu + g_go.z*-1/g_1mu]
-                            #punkt_c = [point_c.x/g_1mu + g_go.x*-1/g_1mu, point_c.y/g_1mu + g_go.y*-1/g_1mu, point_c.z/g_1mu + g_go.z*-1/g_1mu]
-
-                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
-                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
-                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
+    for masche in maschen_eines_levels[id_]:
+        punkt_a = masche[0]
+        punkt_b = masche[1]
+        punkt_c = masche[2]
                                                                               
-                            # sortiere nach z_wert
-                              
-                            if punkt_b[2] < punkt_a[2]:
-                                punkt_temp = punkt_a
-                                punkt_a = punkt_b
-                                punkt_b = punkt_temp
-                                
-                            if punkt_c[2] < punkt_a[2]:
-                                punkt_temp = punkt_a
-                                punkt_a = punkt_c
-                                punkt_c = punkt_temp                                
+        # sortiere nach z_wert
+            
+        if punkt_b[2] < punkt_a[2]:
+            punkt_temp = punkt_a
+            punkt_a = punkt_b
+            punkt_b = punkt_temp
+            
+        if punkt_c[2] < punkt_a[2]:
+            punkt_temp = punkt_a
+            punkt_a = punkt_c
+            punkt_c = punkt_temp                                
 
-                            if punkt_c[2] < punkt_b[2]:
-                                punkt_temp = punkt_b
-                                punkt_b = punkt_c
-                                punkt_c = punkt_temp
+        if punkt_c[2] < punkt_b[2]:
+            punkt_temp = punkt_b
+            punkt_b = punkt_c
+            punkt_c = punkt_temp
                             
-                                
-                            masche.append(punkt_a)
-                            masche.append(punkt_b)
-                            masche.append(punkt_c)
-                            
-                            maschen.append(masche)
- 
-                            anzahl = anzahl + 1
-                            if anzahl % 1000 == 0:
-                                progressbar_1.step(schritt)
-                                root.update_idletasks()
-                            if anzahl % 45000 == 0:
-                                schritt = schritt * -1
+            
+        #masche.append(punkt_a)
+        #masche.append(punkt_b)
+        #masche.append(punkt_c)
+        
+        #maschen.append(masche)
+
+        anzahl = anzahl + 1
+        if anzahl % 1000 == 0:
+            progressbar_1.step(schritt)
+            root.update_idletasks()
+        if anzahl % 45000 == 0:
+            schritt = schritt * -1
+
     grundflaeche_aus_ges = 0.0
     oberflaeche_aus_ges = 0.0
     volumen_aus_ges = 0.0
@@ -1838,7 +1847,7 @@ def dgm_volumen_berechnen():
         
     hoehen_korrektur = str(options_utm_hoehe.get())
     
-    for masche_ in maschen:
+    for masche_ in maschen_eines_levels[id_]:       #maschen:
         
         punkt_1 = masche_[0]
         punkt_2 = masche_[1]
@@ -2100,7 +2109,7 @@ def dgm_volumen_berechnen():
             schritt = schritt * -1        
         
     
-    file_text_vol.insert(tk.END, 'Anzahl Maschen                    : ' + str(len(maschen)) + '\n')
+    file_text_vol.insert(tk.END, 'Anzahl Maschen                    : ' + str(len(maschen_eines_levels[id_])) + '\n')
     if utm_var.get() == True:
         file_text_vol.insert(tk.END, 'utm Korrektur wird beruecksichtigt'  + '\n')
         file_text_vol.insert(tk.END, '       m_0 ist                    : {0:_.4f}'.format(utm_faktor) + '\n')
@@ -2156,6 +2165,8 @@ def select_4_ElementsbyType():
     global g_go_x_mu
     global g_go_y_mu
     global g_go_z_mu
+    global maschen_eines_levels
+    maschen_eines_levels=[]
     levelAnzahlMaschen=[]
     #levelGrundFlaeche=[]
     #levelVolumen=[]
@@ -2170,6 +2181,7 @@ def select_4_ElementsbyType():
     #hochMin=[]
     #hochMax=[]
     for i in range(max(levelListIDs)+1):
+        maschen_eines_levels.append([])
         levelAnzahlMaschen.append(0)
         #levelGrundFlaeche.append(0)
         #levelVolumen.append(0)
@@ -2240,6 +2252,8 @@ def select_4_ElementsbyType():
                             masche.append(punkt_a)
                             masche.append(punkt_b)
                             masche.append(punkt_c)
+                            
+                            maschen_eines_levels[levelId].append(masche)
 
                             if levelAnzahlMaschen[levelId] == 1:
                                 hoeheMin[levelId] = h_min
@@ -2265,6 +2279,8 @@ def select_4_ElementsbyType():
     ebenen = []
     for i in range(len(levelListIDs)):
         levelId_ = levelListIDs[i]
+        #print(len(maschen_eines_levels[levelId_]))
+        #if len(maschen_eines_levels[levelId_]) > 0:print(maschen_eines_levels[levelId_][0:2])
         if levelAnzahlMaschen[levelId_] > 0:
             #hoeheMittel = levelVolumen[levelId_] / levelGrundFlaeche[levelId_]
             ebenen.append((levelList[i], levelListIDs[i], levelAnzahlMaschen[levelId_],
@@ -2293,9 +2309,7 @@ def are_ident_points(punkt_a_, punkt_b_):
     if abs(punkt_a_[2] - punkt_b_[2]) > 0.0001: return False
     return True
 
-
-    
-def hoehenlinien_berechnen():
+def hoehenlinien_berechnen_2():
     global g_1mu
     global g_go
     global g_go_x_mu
@@ -2304,6 +2318,7 @@ def hoehenlinien_berechnen():
     global faktor_projektion
     global hoehenlinien
     global polylines
+    global maschen_eines_levels
     
     # keine ebene gewaehlt, abbruch
     if len(tree_4.selection()) == 0: return
@@ -2325,6 +2340,7 @@ def hoehenlinien_berechnen():
         ebeneDatensatz_selected_.append(record)
         #print(record)
         #print(id_)
+        #print(len(maschen_eines_levels[id_]))
         
 
     schritt = 2
@@ -2332,178 +2348,144 @@ def hoehenlinien_berechnen():
     root.update_idletasks()
     anzahl = 0
     
-    #Get active model
-    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
-    dgnModel = ACTIVEMODEL.GetDgnModel()
-    #name =  model.GetModelName()
-    #Get all graphical elements from the model
-    graphicalElements = dgnModel.GetGraphicElements()
- 
-    for perElementRef in graphicalElements:
-        elementId = perElementRef.GetElementId()
-        eeh = EditElementHandle(perElementRef, dgnModel)
-        eh = ElementHandle(perElementRef)
-
-        msElement = MSElement()
-        msElement = eeh.GetElement ()
-
-        isGraphics = msElement.ehdr.isGraphics
-        isInvisible = msElement.hdr.dhdr.props.b.invisible
-
-        if (isGraphics and not(isInvisible)):
-            eleType = eh.GetElementType()
-            levelId = msElement.ehdr.level
-            if (eleType == 6) :
-                curve = ICurvePathQuery.ElementToCurveVector(eh)
-                for element in curve:
-                    points = element.GetLineString()
-                    if len(points) == 4:
-                        if levelId in ebenenId_selected_:
-                            hoehenlinie = []
-                            punkt_von = []
-                            punkt_nach = []
-                            masche = []
-                            punkt_a = []
-                            punkt_b = []
-                            punkt_c = []
-                            point_a = points[0]
-                            point_b = points[1]
-                            point_c = points[2]
-
-                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
-                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
-                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
-                                                                              
-                            # sortiere nach z_wert
-                              
-                            if punkt_b[2] < punkt_a[2]:
-                                punkt_temp = punkt_a
-                                punkt_a = punkt_b
-                                punkt_b = punkt_temp
-                                
-                            if punkt_c[2] < punkt_a[2]:
-                                punkt_temp = punkt_a
-                                punkt_a = punkt_c
-                                punkt_c = punkt_temp                                
-
-                            if punkt_c[2] < punkt_b[2]:
-                                punkt_temp = punkt_b
-                                punkt_b = punkt_c
-                                punkt_c = punkt_temp
+    for masche in maschen_eines_levels[id_]:
+        punkt_a = masche[0]
+        punkt_b = masche[1]
+        punkt_c = masche[2]
+        punkt_a[2] = punkt_a[2] + 0.005
+        punkt_b[2] = punkt_b[2] + 0.005
+        punkt_c[2] = punkt_c[2] + 0.005
+    
+        # von unten nach oben: 1(a) unten, 3(c) oben
+                                      
+        if punkt_b[2] < punkt_a[2]:
+            punkt_temp = punkt_a
+            punkt_a = punkt_b
+            punkt_b = punkt_temp
                             
-                                
-                            #masche.append(punkt_a)
-                            #masche.append(punkt_b)
-                            #masche.append(punkt_c)
-                            
-                            #maschen.append(masche)
-                            
-                            #hoehenlinien berechnen
-                            delta_x21 = punkt_b[0] - punkt_a[0]
-                            delta_y21 = punkt_b[1] - punkt_a[1]
-                            delta_z21 = punkt_b[2] - punkt_a[2]
-                            
-                            delta_x31 = punkt_c[0] - punkt_a[0]
-                            delta_y31 = punkt_c[1] - punkt_a[1]
-                            delta_z31 = punkt_c[2] - punkt_a[2]
-                            
-                            delta_x32 = punkt_c[0] - punkt_b[0]
-                            delta_y32 = punkt_c[1] - punkt_b[1]
-                            delta_z32 = punkt_c[2] - punkt_b[2]
-                            
-                            hoehe_start = int(punkt_a[2] / hoehen_intervall_1) * hoehen_intervall_1
-                            hoehe_start = hoehe_start - hoehen_intervall_1
-                            hoehe = hoehe_start
-                            
-                            # starthoehe festlegen
-                            while hoehe < punkt_a[2]:
-                                hoehe = hoehe + hoehen_intervall_1
-                                
-                            hoehe = round(hoehe, 4)
-                            
-                            # jetzt hoehenlinie bestimmen: [ hoehe, 1 ,[punkt_von] ,[punkt_nach]]
-                            # zuerst von unten von punkt_a bis punkt_b
-                            while hoehe <= punkt_b[2]:
-                                hoehenlinie = []
-                                if abs(delta_z31) >= 0.0001:
-                                    x_von = punkt_a[0] + delta_x31 * (hoehe - punkt_a[2]) / delta_z31
-                                    y_von = punkt_a[1] + delta_y31 * (hoehe - punkt_a[2]) / delta_z31
-                                    z_von = hoehe
-                                    punkt_von = [x_von, y_von, z_von]
-                                    hoehenlinie.append([hoehe, 1])
-                                    hoehenlinie.append(punkt_von)
-                                else:
-                                    punkt_von = punkt_a
-                                    hoehenlinie.append([hoehe, 1])
-                                    hoehenlinie.append(punkt_von)
-                                
-                                if abs(delta_z21) >= 0.0001:
-                                    x_nach = punkt_a[0] + delta_x21 * (hoehe - punkt_a[2]) / delta_z21
-                                    y_nach = punkt_a[1] + delta_y21 * (hoehe - punkt_a[2]) / delta_z21
-                                    z_nach = hoehe
-                                    punkt_nach = [x_nach, y_nach, z_nach]
-                                    hoehenlinie.append(punkt_nach)
-                                else:
-                                    punkt_nach = punkt_b
-                                    hoehenlinie.append(punkt_nach)
+        if punkt_c[2] < punkt_a[2]:
+            punkt_temp = punkt_a
+            punkt_a = punkt_c
+            punkt_c = punkt_temp 
                                     
-                                hoehenlinien.append(hoehenlinie)
-                                #hoehenlinie = []
-                                hoehe = hoehe + hoehen_intervall_1
-                                hoehe = round(hoehe, 4)
-                                
-                            while hoehe <= punkt_c[2]:
-                                hoehenlinie = []
-                                if abs(delta_z31) >= 0.0001:
-                                    x_von = punkt_a[0] + delta_x31 * (hoehe - punkt_a[2]) / delta_z31
-                                    y_von = punkt_a[1] + delta_y31 * (hoehe - punkt_a[2]) / delta_z31
-                                    z_von = hoehe
-                                    punkt_von = [x_von, y_von, z_von]
-                                    hoehenlinie.append([hoehe, 1])
-                                    hoehenlinie.append(punkt_von)
-                                else:                                
-                                    punkt_von = punkt_c
-                                    hoehenlinie.append([hoehe, 1])
-                                    hoehenlinie.append(punkt_von)
-                                
-                                if abs(delta_z32) >= 0.001:
-                                    x_nach = punkt_b[0] + delta_x32 * (hoehe - punkt_b[2]) / delta_z32
-                                    y_nach = punkt_b[1] + delta_y32 * (hoehe - punkt_b[2]) / delta_z32
-                                    z_nach = hoehe
-                                    punkt_nach = [x_nach, y_nach, z_nach]
-                                    hoehenlinie.append(punkt_nach)
-                                else:
-                                    punkt_nach = punkt_b
-                                    hoehenlinie.append(punkt_nach)
-                                    
-                                hoehenlinien.append(hoehenlinie)
-                                #hoehenlinie = []
-                                hoehe = hoehe + hoehen_intervall_1
-                                hoehe = round(hoehe, 4)
-                                
-                            #ende hoehenlinien berechnen
+        if punkt_c[2] < punkt_b[2]:
+            punkt_temp = punkt_b
+            punkt_b = punkt_c
+            punkt_c = punkt_temp
+        
+        #hoehenlinien berechnen
+        delta_x21 = punkt_b[0] - punkt_a[0]
+        delta_y21 = punkt_b[1] - punkt_a[1]
+        delta_z21 = punkt_b[2] - punkt_a[2]
+        
+        delta_x31 = punkt_c[0] - punkt_a[0]
+        delta_y31 = punkt_c[1] - punkt_a[1]
+        delta_z31 = punkt_c[2] - punkt_a[2]
+        
+        delta_x32 = punkt_c[0] - punkt_b[0]
+        delta_y32 = punkt_c[1] - punkt_b[1]
+        delta_z32 = punkt_c[2] - punkt_b[2]
+        
+        hoehe_start = int(punkt_a[2] / hoehen_intervall_1) * hoehen_intervall_1
+        hoehe_start = hoehe_start - hoehen_intervall_1
+        hoehe = hoehe_start
+        
+        # starthoehe festlegen
+        while hoehe < punkt_a[2]:
+            hoehe = hoehe + hoehen_intervall_1
+            
+        hoehe = round(hoehe, 3)
+        
+        # jetzt hoehenlinie bestimmen: [[hoehe, 1] ,[punkt_von] ,[punkt_nach]]
+        # zuerst von unten von punkt_a bis punkt_b
+        while hoehe <= punkt_b[2]:
+            hoehenlinie = []
+            if abs(delta_z31) >= 0.00001:
+                x_von = punkt_a[0] + delta_x31 * (hoehe - punkt_a[2]) / delta_z31
+                y_von = punkt_a[1] + delta_y31 * (hoehe - punkt_a[2]) / delta_z31
+                z_von = hoehe
+                punkt_von = [x_von, y_von, z_von]
+                hoehenlinie.append([hoehe, 1])
+                hoehenlinie.append(punkt_von)
+            else:
+                punkt_von = punkt_a
+                punkt_von[2] = hoehe
+                hoehenlinie.append([hoehe, 1])
+                hoehenlinie.append(punkt_von)
+            
+            if abs(delta_z21) >= 0.00001:
+                x_nach = punkt_a[0] + delta_x21 * (hoehe - punkt_a[2]) / delta_z21
+                y_nach = punkt_a[1] + delta_y21 * (hoehe - punkt_a[2]) / delta_z21
+                z_nach = hoehe
+                punkt_nach = [x_nach, y_nach, z_nach]
+                hoehenlinie.append(punkt_nach)
+            else:
+                punkt_nach = punkt_b
+                punkt_nach[2] = hoehe
+                hoehenlinie.append(punkt_nach)
+                
+            hoehenlinien.append(hoehenlinie)
+            
+            hoehe = hoehe + hoehen_intervall_1
+            hoehe = round(hoehe, 3)
+            
+        while hoehe <= punkt_c[2]:
+            hoehenlinie = []
+            if abs(delta_z31) >= 0.00001:
+                x_von = punkt_a[0] + delta_x31 * (hoehe - punkt_a[2]) / delta_z31
+                y_von = punkt_a[1] + delta_y31 * (hoehe - punkt_a[2]) / delta_z31
+                z_von = hoehe
+                punkt_von = [x_von, y_von, z_von]
+                hoehenlinie.append([hoehe, 1])
+                hoehenlinie.append(punkt_von)
+            else:                                
+                punkt_von = punkt_c
+                punkt_von[2] = hoehe
+                hoehenlinie.append([hoehe, 1])
+                hoehenlinie.append(punkt_von)
+            
+            if abs(delta_z32) >= 0.00001:
+                x_nach = punkt_b[0] + delta_x32 * (hoehe - punkt_b[2]) / delta_z32
+                y_nach = punkt_b[1] + delta_y32 * (hoehe - punkt_b[2]) / delta_z32
+                z_nach = hoehe
+                punkt_nach = [x_nach, y_nach, z_nach]
+                hoehenlinie.append(punkt_nach)
+            else:
+                punkt_nach = punkt_b
+                punkt_nach[2] = hoehe
+                hoehenlinie.append(punkt_nach)
+                
+            hoehenlinien.append(hoehenlinie)
+            
+            hoehe = hoehe + hoehen_intervall_1
+            hoehe = round(hoehe, 3)
+            
+        #ende hoehenlinien berechnen
 
-                            anzahl = anzahl + 1
-                            if anzahl % 1000 == 0:
-                                progressbar_4.step(schritt)
-                                root.update_idletasks()
-                            if anzahl % 45000 == 0:
-                                schritt = schritt * -1  
+        anzahl = anzahl + 1
+        if anzahl % 1000 == 0:
+            progressbar_4.step(schritt)
+            root.update_idletasks()
+        if anzahl % 45000 == 0:
+            schritt = schritt * -1  
 
     hoehenlinien.sort()
+    #die hoehenlinien sind nun nach hoehenwert [hoehe, 1] sortiert
+    #und lagemaessig von links unten nach rechts oben
     
     label_anz_hoehenlinien.config(text=' Anzahl Hoehenlinien (segmente): ' + str(len(hoehenlinien)))
     
-    #gruppieren der Hoehenlinien nach Hoehenwert
-    #jede gruppe kann meherere Polylinien enthalten
-    puffer = []
+    #gruppieren der hoehenlinien nach hoehenwert [hoehe, 1]
+    #jede hoehengruppe kann mehr als eine Polylinien enthalten
     hoehen_gruppen = itertools.groupby(hoehenlinien, key=lambda x: x[0])
     for key, gruppe in hoehen_gruppen:
+        puffer = []
         lines = list(gruppe)
         #print(key, '--->',lines)
         anzahl_1en = len(lines)
         #print(f'{anzahl_1en = }')
-        #kennzeichen für neue polylinie in der gruppe suchen falls nach einem durchlauf noch linien mit kennung 1 vorhanden sind
+        #kennzeichen für neue polylinie in der gruppe suchen:
+        #falls nach einem durchlauf noch linien mit kennung 1 vorhanden sind
         neu = True
         
         while anzahl_1en > 0:
@@ -2563,7 +2545,14 @@ def hoehenlinien_berechnen():
                 #print(test_1, test_2, test_3, test_4)
                 
             #print(punkte_dq)
-
+            #im puffer werden die polygonlinien eines hoehenwertes zwischengespeichert
+            #die gerade gefundene polygonlinie koennte ein teilabschnitt einer laengeren
+            #polygonlinie sein. im puffer wird nun nachgeschaut, ob ein dort gespeichertes
+            #teilstueck am anfang oder ende angehaengt werden kann.
+            #ein passendes teilstueck wird als verarbeitet gekennzeichnet, weitere teilstuecke
+            #werden im puffer gesucht und verarbeitet.
+            #zum schluss wird die (eventuell) ergaenzte polygonlinie im puffer abgelegt
+ 
             if len(puffer) > 0:
                 for j,zeile in enumerate(puffer):
                     #print('pufferzeile :',j, zeile)
@@ -2588,7 +2577,7 @@ def hoehenlinien_berechnen():
                     test_22 = are_ident_points(punkt_vorne, punkt_b)
                     if test_22:
                         punkte_dq.popleft()
-                        #punkte_dq.extendleft(liste_punkte.reverse())
+                        #liste_punkte in umgekehrter reihenfolge anhangen
                         punkte_dq.extendleft(liste_punkte[::-1])
                         punkt_vorne = punkt_a
                         #print(f'{test_22 = }')
@@ -2608,6 +2597,7 @@ def hoehenlinien_berechnen():
                     test_42 = are_ident_points(punkt_hinten, punkt_b)
                     if test_42:
                         punkte_dq.pop()
+                        #liste_punkte in umgekehrter reihenfolge anhangen
                         punkte_dq.extend(liste_punkte[::-1])
                         punkt_hinten = punkt_a
                         #print(f'{test_42 = }')
@@ -2624,19 +2614,18 @@ def hoehenlinien_berechnen():
             #for k,zeile_ in enumerate(puffer):
                 #print('puffer zeile : ', k, zeile_, '\n')
                 
-            
             zaehler_kennung_1 = 0
             for line in lines:
                 if line[0][1] == 1:
                     zaehler_kennung_1 = zaehler_kennung_1 + 1
             #print(f' { zaehler_kennung_1 = }')
             anzahl_1en = zaehler_kennung_1
+            # -- hier ende der while schleife anzahl_1en
 
-    for k,zeile_ in enumerate(puffer):
-        test=zeile_[0][1]
-        if test == 0: continue  # bereits verarbeitet
-        polylines.append(zeile_)
-       
+        for k,zeile_ in enumerate(puffer):
+            test=zeile_[0][1]
+            if test == 0: continue  # bereits verarbeitet
+            polylines.append(zeile_)
 
     #print(polylines)
     #print()
@@ -2658,7 +2647,7 @@ def hoehenlinien_berechnen():
         button_cad_hl.config(state='disabled')
         
     return    
-    
+
 def hoehenlinien_zeichnen():
     global ACTIVEMODEL
     global dgnModel
@@ -2671,6 +2660,7 @@ def hoehenlinien_zeichnen():
     global levelListIDs        
     global hoehenlinien
     global polylines
+    global hl_werte
     
     schritt = 2
     progressbar_4.step(schritt)
@@ -2738,10 +2728,21 @@ def hoehenlinien_zeichnen():
     hoehen_hl_4.append(hoehe)
     while hoehe < z_max_4:
         hoehe = hoehe + hl_4_intervall
-        hoehen_hl_4.append(hoehe)    
-
+        hoehen_hl_4.append(hoehe)
+    
+    hl_typ = 2   #linestrings default 
+    hl_wert_s = str(options_hl_art.get())
+    
+    if hl_wert_s == hl_werte[0]:
+        hl_typ = 1   #lines
+    if hl_wert_s == hl_werte[1]:
+        hl_typ = 2   #linestrings
+    if hl_wert_s == hl_werte[2]:
+        hl_typ = 3   #bsplines               
+    
     #hl_typ = 1   #linien
-    hl_typ = 2   #linestrings
+    #hl_typ = 2   #linestrings
+    #hl_typ = 3   #bsplines
     if len(hoehenlinien) > 0:
         PyCadInputQueue.SendKeyin("mark")
         button2_undo_mark.config(state='active')
@@ -2837,7 +2838,51 @@ def hoehenlinien_zeichnen():
             progressbar_4.stop()
             
         elif hl_typ == 3:
-            return
+            for polylinie in polylines:
+                anzahl_polylinien = anzahl_polylinien + 1
+                hoehe = polylinie[0][0]
+                kennung =  polylinie[0][1]
+                punktliste = polylinie[1]
+                #if anzahl_polylinien < 3:
+                    #print(hoehe, kennung)
+                    #print(punktliste[0:3], '\n')
+                    #punkt=punktliste[0]
+                    #print(punkt)
+                color = hl_0_color
+                style = hl_0_style
+                weight = hl_0_weight
+
+                if zeichne_intervall_hl_2_var.get() == True: 
+                    if hoehe in hoehen_hl_2:
+                        color = hl_2_color
+                        style = hl_2_style
+                        weight = hl_2_weight
+                if zeichne_intervall_hl_3_var.get() == True: 
+                    if hoehe in hoehen_hl_3:
+                        color = hl_3_color
+                        style = hl_3_style
+                        weight = hl_3_weight
+                if zeichne_intervall_hl_4_var.get() == True: 
+                    if hoehe in hoehen_hl_4:
+                        color = hl_4_color
+                        style = hl_4_style
+                        weight = hl_4_weight
+                
+                #test = createLineStringElement(punktliste, hl_ebene_id, color, style, weight)
+                if len(punktliste) > 3:
+                    test = createBsplineElement(punktliste, hl_ebene_id, color, style, weight)
+                else:
+                    test = createLineStringElement(punktliste, hl_ebene_id, color, style, weight)
+                
+                anzahl = anzahl + 1
+                if anzahl % 1000 == 0:
+                    progressbar_4.step(schritt)
+                    root.update_idletasks()
+                if anzahl % 45000 == 0:
+                    schritt = schritt * -1            
+            progressbar_4.stop()
+                        
+
         PyCadInputQueue.SendReset()
         PyCadInputQueue.SendKeyin("FIT VIEW EXTENDED")
         PyCommandState.StartDefaultCommand()
@@ -2891,6 +2936,8 @@ if __name__ == '__main__':
     global g_go_z_mu
     global hoehenlinien
     global polylines
+    global maschen_eines_levels
+    global dgn_pfad
     
     punkte_set=set()    # koordinaten zum export - keine doppelten
     
@@ -2911,6 +2958,14 @@ if __name__ == '__main__':
             g_go_z_mu = g_go.z*-1/g_1mu
 
             dgnfile = dgnModel.GetDgnFile()
+            
+                      
+            dgnFile_ = ISessionMgr.GetActiveDgnFile()
+            dgn_dateiname = str(dgnFile_.GetFileName())
+            dgn_name = os.path.basename(dgn_dateiname)
+            dgn_pfad = os.path.dirname(dgn_dateiname)
+            dgn_sep = os.path.sep
+            #print(dgn_dateiname, dgn_name, dgn_pfad, dgn_sep)
             
             farben_ = []
 
@@ -3304,7 +3359,7 @@ if __name__ == '__main__':
             geoid_un_eingabe.insert(0,"43.0")
             geoid_un_eingabe.grid(row=0, column=1, sticky='e') 
             
-            utm_hoehen_label = tk.Label(frame5_1, text=" utm : Umkehrung Hoehenreduktion auf --> ")
+            utm_hoehen_label = tk.Label(frame5_1, text=" Beachten und einstellen bei   utm : Umkehrung der Hoehenreduktion auf --> ")
             utm_hoehen_label.grid(row=5, column=0, sticky='ns') 
             
             hoehen_werte = ('Hoehen-Mittel je Seite','Hoehen-Mittel je Masche','Hoehen-Mittel Gebiet') 
@@ -3314,7 +3369,7 @@ if __name__ == '__main__':
             menu_utm_hoehe.grid(sticky='e', row=5, column=0)
             options_utm_hoehe.set(hoehen_werte[1])                                            
             
-            button_11 = tk.Button(frame5_1, text='3. Volumen berechnen ', command=dgm_volumen_berechnen)
+            button_11 = tk.Button(frame5_1, text='3. Volumen berechnen ', command=dgm_volumen_berechnen_2)
             button_11.grid(row=6, column=0, ipadx=60, sticky='e') 
             button_11.config(state='disabled')                                                                                                                                   
 
@@ -3403,7 +3458,7 @@ if __name__ == '__main__':
             
             stricharten_werte = ('0', '1', '2', '3', '4', '5', '6', '7')
             strichbreiten_werte = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10')
-            intervall_vielfaches = ('1', '2', '4', '5', '8', '10', '20', '25', '40', '50', '100') 
+            intervall_vielfaches = ('1', '2', '4', '5', '8', '10', '16', '20', '25', '40', '50', '100') 
             
             frame7_1_1 = ttk.Frame(master=frame6_1)
             frame7_1_1.grid(sticky='w', row=4, column=0) 
@@ -3569,7 +3624,7 @@ if __name__ == '__main__':
             frame11_1_1 = ttk.Frame(master=frame6_1)
             frame11_1_1.grid(sticky='w', row=8, column=0)             
             
-            hl_berechnen_button = tk.Button(frame11_1_1, text="3. Hoehenlinien fuer Grundintervall berechnen", command=hoehenlinien_berechnen)
+            hl_berechnen_button = tk.Button(frame11_1_1, text="3. Hoehenlinien fuer Grundintervall berechnen", command=hoehenlinien_berechnen_2)
             hl_berechnen_button.grid(row=0, column=0, pady = 10, sticky='w')  
             
             label_anz_hoehenlinien = tk.Label(frame11_1_1, text=' Anzahl Hoehenlinien (segmente): 0 ')
@@ -3584,11 +3639,21 @@ if __name__ == '__main__':
             button_cad_hl.grid(row=0, column=0, pady = 10, sticky='w')  
             button_cad_hl.config(state='disabled')
             
-            label_dummy_hl = tk.Label(frame12_1_1, text='             ')
-            label_dummy_hl.grid(row=0, column=1, sticky='w')                         
+            label_dummy_hl = tk.Label(frame12_1_1, text='vorher einstellen ---->')
+            label_dummy_hl.grid(row=0, column=1, sticky='w') 
+            
+            hl_werte = ('HL als lines zeichnen','HL als linestrings zeichnen','HL als bsplines zeichnen') 
+            
+            options_hl_art = tk.StringVar()
+            menu_hl_werte = tk.OptionMenu(frame12_1_1, options_hl_art, *hl_werte)
+            menu_hl_werte.grid(sticky='e', row=0, column=2)
+            options_hl_art.set(hl_werte[1]) 
+            
+            label_dummy2_hl = tk.Label(frame12_1_1, text='             ')
+            label_dummy2_hl.grid(row=0, column=3, sticky='w')                                                 
             
             button2_undo_mark = tk.Button(frame12_1_1, text='undo mark senden', command=undo_mark)  
-            button2_undo_mark.grid(row=0, column=2, pady = 10, sticky='e')  
+            button2_undo_mark.grid(row=0, column=4, pady = 10, sticky='e')  
             button2_undo_mark.config(state='disabled')                                                       
                       
             #--- weiter FrameHaupt

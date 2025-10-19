@@ -552,6 +552,43 @@ def createLineStringElement(punktliste, hl_ebene_id, color, style, weight):
     
     return True
 
+def createShapeElement_2(punktliste, hl_ebene_id, color, style, weight):
+    global ACTIVEMODEL
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    
+    points = DPoint3dArray()
+    
+    for punkt in punktliste:
+        #print(punkt)
+        points.append(DPoint3d(punkt[0] * g_1mu + g_go.x, punkt[1] * g_1mu + g_go.y, punkt[2] * g_1mu + g_go.z))
+
+    shape_eeh = EditElementHandle()
+    
+    #status = LineHandler.CreateLineElement(line_eeh, None, segment, dgnModel.Is3d(), dgnModel)
+    #status = LineStringHandler.CreateLineStringElement(linestring_eeh, None, points, dgnModel.Is3d(), dgnModel)
+    status = ShapeHandler.CreateShapeElement (shape_eeh, None, points, ACTIVEMODEL.Is3d(), ACTIVEMODEL)
+
+    if BentleyStatus.eSUCCESS != status:
+        return False
+    
+    propertiesSetter = ElementPropertiesSetter()
+    propertiesSetter.SetColor(color)
+    propertiesSetter.SetLinestyle(style, None)
+    propertiesSetter.SetWeight(weight)
+    propertiesSetter.SetLevel(hl_ebene_id)
+    
+    propertiesSetter.Apply(shape_eeh)        
+
+    # Add the shape element to model
+    if BentleyStatus.eSUCCESS != shape_eeh.AddToModel():
+        return False
+    
+    return True
+
 def createBsplineElement(punktliste, hl_ebene_id, color, style, weight):
     global ACTIVEMODEL
     global g_1mu
@@ -866,7 +903,16 @@ def farb_pick(k):
         farbe.config(bg=farben_[k], text = k)
     elif farbe_fuer == 4:
         color_button_hl_4.config(bg=farben_[k], text = k)
-        farbe.config(bg=farben_[k], text = k)                        
+        farbe.config(bg=farben_[k], text = k) 
+    elif farbe_fuer == 5:
+        color_button_um_ob.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k) 
+    elif farbe_fuer == 6:
+        color_button_um_un.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k) 
+    elif farbe_fuer == 7:
+        color_button_um_sei.config(bg=farben_[k], text = k)
+        farbe.config(bg=farben_[k], text = k)                                              
     
 def select_tab():
     global farbe_fuer
@@ -903,7 +949,29 @@ def select_tab_h4():
     #hl_2_Color = int(color_button_hl_0['text'])
     hl_4_Color = int(color_button_hl_4.cget('text'))
     farbe.config(bg=farben_[hl_4_Color], text = hl_4_Color)
-    notebook.select(frameFarben)                
+    notebook.select(frameFarben) 
+    
+def select_tab_um_ob():
+    global farbe_fuer
+    farbe_fuer = 5
+    um_ob_Color = int(color_button_um_ob.cget('text'))
+    farbe.config(bg=farben_[um_ob_Color], text = um_ob_Color)
+    notebook.select(frameFarben) 
+    
+def select_tab_um_un():
+    global farbe_fuer
+    farbe_fuer = 6
+    um_un_Color = int(color_button_um_un.cget('text'))
+    farbe.config(bg=farben_[um_un_Color], text = um_un_Color)
+    notebook.select(frameFarben)  
+
+def select_tab_um_sei():
+    global farbe_fuer
+    farbe_fuer = 7
+    um_sei_Color = int(color_button_um_sei.cget('text'))
+    farbe.config(bg=farben_[um_sei_Color], text = um_sei_Color)
+    notebook.select(frameFarben)    
+                         
     
 def select_tab_H():
     global farbe_fuer
@@ -911,6 +979,8 @@ def select_tab_H():
         notebook.select(frameHaupt)   # DGM
     elif farbe_fuer == 1 or farbe_fuer == 2 or farbe_fuer == 3 or farbe_fuer == 4:
         notebook.select(frameHoehenlinien)  # hoehenlinien
+    elif farbe_fuer == 5 or farbe_fuer == 6 or farbe_fuer == 7:
+        notebook.select(frameUmring)  # umring        
     return
         
 def undo_mark():
@@ -2302,7 +2372,153 @@ def select_4_ElementsbyType():
     #button_11.config(state='active')
         
     root.update_idletasks()
+
+
+def select_5_ElementsbyType():
+    #dgn file scannen nach dgm maschen
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    global maschen_eines_levels
+    maschen_eines_levels=[]
+    levelAnzahlMaschen=[]
+    #levelGrundFlaeche=[]
+    #levelVolumen=[]
+    #hoeheMittel=[]
+    hoeheMin=[]
+    hoeheMax=[]
+    #x_mittel=[]
+    #y_mittel=[]
+    #z_mittel=[]
+    #rechtsMin=[]
+    #rechtsMax=[]
+    #hochMin=[]
+    #hochMax=[]
+    for i in range(max(levelListIDs)+1):
+        maschen_eines_levels.append([])
+        levelAnzahlMaschen.append(0)
+        #levelGrundFlaeche.append(0)
+        #levelVolumen.append(0)
+        #hoeheMittel.append(0)
+        hoeheMin.append(0)
+        hoeheMax.append(0)
+        #x_mittel.append(0)
+        #y_mittel.append(0)
+        #z_mittel.append(0)
+        #rechtsMin.append(0)
+        #rechtsMax.append(0)
+        #hochMin.append(0)
+        #hochMax.append(0)
+
+    schritt = 2
+    progressbar_5.step(schritt)
+    root.update_idletasks()
+    anzahl = 0    
+    #Get active model
+    ACTIVEMODEL = ISessionMgr.ActiveDgnModelRef
+    dgnModel = ACTIVEMODEL.GetDgnModel()
+    #name =  model.GetModelName()
+    #Get all graphical elements from the model
+    graphicalElements = dgnModel.GetGraphicElements()
     
+
+    for perElementRef in graphicalElements:
+        elementId = perElementRef.GetElementId()
+        eeh = EditElementHandle(perElementRef, dgnModel)
+        eh = ElementHandle(perElementRef)
+
+        msElement = MSElement()
+        msElement = eeh.GetElement ()
+
+        isGraphics = msElement.ehdr.isGraphics
+        isInvisible = msElement.hdr.dhdr.props.b.invisible
+
+        if (isGraphics and not(isInvisible)):
+            eleType = eh.GetElementType()
+            levelId = msElement.ehdr.level
+            if (eleType == 6) :
+                curve = ICurvePathQuery.ElementToCurveVector(eh)
+                for element in curve:
+                    points = element.GetLineString()
+                    if len(points) == 4:
+                        if levelId in levelListIDs:
+                            levelAnzahlMaschen[levelId] = levelAnzahlMaschen[levelId] + 1
+                            masche = []
+                            punkt_a = []
+                            punkt_b = []
+                            punkt_c = []
+                            point_a = points[0]
+                            point_b = points[1]
+                            point_c = points[2]
+
+                            punkt_a = [point_a.x/g_1mu + g_go_x_mu, point_a.y/g_1mu + g_go_y_mu, point_a.z/g_1mu + g_go_z_mu]
+                            punkt_b = [point_b.x/g_1mu + g_go_x_mu, point_b.y/g_1mu + g_go_y_mu, point_b.z/g_1mu + g_go_z_mu]
+                            punkt_c = [point_c.x/g_1mu + g_go_x_mu, point_c.y/g_1mu + g_go_y_mu, point_c.z/g_1mu + g_go_z_mu]
+                                                        
+                            h_min = punkt_a[2]
+                            h_max = punkt_a[2]
+                            if punkt_b[2] < h_min: h_min = punkt_b[2]
+                            if punkt_c[2] < h_min: h_min = punkt_c[2]
+                            if punkt_b[2] > h_max: h_max = punkt_b[2]
+                            if punkt_c[2] > h_max: h_max = punkt_c[2]
+                            
+
+                            masche.append(punkt_a)
+                            masche.append(punkt_b)
+                            masche.append(punkt_c)
+                            
+                            maschen_eines_levels[levelId].append(masche)
+
+                            if levelAnzahlMaschen[levelId] == 1:
+                                hoeheMin[levelId] = h_min
+                                hoeheMax[levelId] = h_max
+
+                                
+                            if h_min < hoeheMin[levelId]: hoeheMin[levelId] = h_min
+                            if h_max > hoeheMax[levelId]: hoeheMax[levelId] = h_max
+
+                            anzahl = anzahl + 1
+                            if anzahl % 1000 == 0:
+                                progressbar_5.step(schritt)
+                                root.update_idletasks()
+                            if anzahl % 45000 == 0:
+                                schritt = schritt * -1
+                        
+    # loesche alle items in treeview tree_5
+    all_root_items = tree_5.get_children()
+    tree_5.delete(*all_root_items)
+    root.update_idletasks()
+                              
+    # daten aktualisieren
+    ebenen = []
+    for i in range(len(levelListIDs)):
+        levelId_ = levelListIDs[i]
+        #print(len(maschen_eines_levels[levelId_]))
+        #if len(maschen_eines_levels[levelId_]) > 0:print(maschen_eines_levels[levelId_][0:2])
+        if levelAnzahlMaschen[levelId_] > 0:
+            #hoeheMittel = levelVolumen[levelId_] / levelGrundFlaeche[levelId_]
+            ebenen.append((levelList[i], levelListIDs[i], levelAnzahlMaschen[levelId_],
+              '{0:_.3f}'.format(hoeheMin[levelId_]),
+               '{0:_.3f}'.format(hoeheMax[levelId_]), '{0:_.3f}'.format(hoeheMax[levelId_] - hoeheMin[levelId_]) ))
+
+    # add data to the treeview
+    for ebene in ebenen:
+        tree_5.insert('', tk.END, values=ebene)
+    
+    # resize columns 
+    tree_5.column('anzahl_maschen_5',anchor='center', stretch=False, width=175, minwidth=100)   
+    tree_5.column('z_min_5',anchor='center', stretch=False, width=120, minwidth=50)
+    tree_5.column('z_max_5',anchor='center', stretch=False, width=120, minwidth=50)
+    tree_5.column('diff_z_5',anchor='center', stretch=False, width=120, minwidth=50)
+
+    progressbar_5.stop()
+    
+    #button_11.config(state='active')
+        
+    root.update_idletasks()
+   
 def are_ident_points(punkt_a_, punkt_b_):
     if abs(punkt_a_[0] - punkt_b_[0]) > 0.0001: return False
     if abs(punkt_a_[1] - punkt_b_[1]) > 0.0001: return False
@@ -2890,6 +3106,372 @@ def hoehenlinien_zeichnen():
         lift_window(root)    
     return    
 
+def umring_berechnen():
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    global polylines
+    global maschen_eines_levels
+    
+    # keine ebene gewaehlt, abbruch
+    if len(tree_5.selection()) == 0: return
+    
+    ebenenId_selected_ = []
+    ebeneDatensatz_selected_ = []
+    
+    maschen = []
+    polylines = []
+    
+    seite = []
+    seiten = []
+    
+    hoehe_grund = float(um_un_hoehe_eingabe.get())
+    
+    for selected_item in tree_5.selection():
+        item = tree_5.item(selected_item)
+        record = item['values']
+        id_=record[1]
+        ebenenId_selected_.append(id_)
+        ebeneDatensatz_selected_.append(record)
+        #print(record)
+        #print(id_)
+        #print(len(maschen_eines_levels[id_]))
+        
+
+    schritt = 2
+    progressbar_5.step(schritt)
+    root.update_idletasks()
+    anzahl = 0
+    
+    for masche in maschen_eines_levels[id_]:
+        #print(masche)
+        seite_01=[masche[0], masche[1]]
+        seite_02=[masche[0], masche[2]]
+        seite_12=[masche[1], masche[2]]
+        s_mitte_01=[round((masche[0][0] + masche[1][0])/2.0, 3),
+                    round((masche[0][1] + masche[1][1])/2.0, 3),
+                    round((masche[0][2] + masche[1][2])/2.0, 3)]
+        s_mitte_02=[round((masche[0][0] + masche[2][0])/2.0, 3),
+                    round((masche[0][1] + masche[2][1])/2.0, 3),
+                    round((masche[0][2] + masche[2][2])/2.0, 3)]
+        s_mitte_12=[round((masche[1][0] + masche[2][0])/2.0, 3),
+                    round((masche[1][1] + masche[2][1])/2.0, 3),
+                    round((masche[1][2] + masche[2][2])/2.0, 3)]    
+        seiten.append([s_mitte_01, seite_01])
+        seiten.append([s_mitte_02, seite_02])
+        seiten.append([s_mitte_12, seite_12])
+        
+    seiten.sort()
+        
+    seiten_gruppen = itertools.groupby(seiten, key=lambda x: x[0])
+
+    zwischenpuffer = []
+
+    for key, gruppe in seiten_gruppen:
+        zeilen = list(gruppe)
+        #print(key, len(zeilen))
+        if len(zeilen) == 1:
+            zwischenpuffer.append([[2, 1],zeilen[0][1]])
+            
+    #print('zwischenpuffer ', len(zwischenpuffer))
+    
+    puffer = []
+    lines = zwischenpuffer
+    anzahl_1en = len(lines)
+    #print(f'{anzahl_1en = }')
+    #kennzeichen für neue polylinie in der gruppe suchen falls nach einem durchlauf noch linien mit kennung 1 vorhanden sind
+    neu = True
+    
+    while anzahl_1en > 0:
+        for i, linie in enumerate(lines[:]):
+            key = linie[0]
+            if linie[0][1] == 0: continue   #die linie ist bereits verarbeitet, also ueberspringen
+            if neu:
+                punkte_dq = collections.deque([])
+                punkt_vorne = lines[i][1][0]
+                punkt_hinten = lines[i][1][1]
+                punkte_dq.append(punkt_vorne)
+                punkte_dq.append(punkt_hinten)
+                lines[i][0][1] = 0  # kennung 0 = linie als verarbeitet markieren
+                neu = False
+                #print()
+                #print('++++',lines[i])
+                #print()
+                continue
+            idx = i + 0
+            #print(idx, linie)
+            #if linie[0][1] == 0: continue   #ist bereits verarbeitet
+            punkta = linie[1][0]
+            punktb = linie[1][1]   
+            #test fuer vorne anhaengen
+            test_1 = are_ident_points(punkt_vorne, punkta)
+            if test_1:
+                punkte_dq.appendleft(punktb)
+                punkt_vorne = punktb
+                #print(f'{test_1 = }')
+                lines[idx][0][1] = 0
+                #print(lines[idx])
+                continue        
+            test_2 = are_ident_points(punkt_vorne, punktb)
+            if test_2:
+                punkte_dq.appendleft(punkta)
+                punkt_vorne = punkta
+                #print(f'{test_2 = }')
+                lines[idx][0][1] = 0
+                #print(lines[idx])
+                continue        
+            #test fuer hinten anhaengen
+            test_3 = are_ident_points(punkt_hinten, punkta)
+            if test_3:
+                punkte_dq.append(punktb)
+                punkt_hinten = punktb
+                #print(f'{test_3 = }')
+                lines[idx][0][1] = 0
+                #print(lines[idx])
+                continue
+            test_4 = are_ident_points(punkt_hinten, punktb)
+            if test_4:
+                punkte_dq.append(punkta)
+                punkt_hinten = punkta
+                #print(f'{test_4 = }')
+                lines[idx][0][1] = 0
+                #print(lines[idx])
+                continue
+            #print(test_1, test_2, test_3, test_4)
+            
+        #print(punkte_dq)
+            
+        if len(puffer) > 0:
+            for j,zeile in enumerate(puffer):
+                #print('pufferzeile :',j, zeile)
+                test=zeile[0][1]
+                if test == 0: continue  # bereits verarbeitet
+                liste_punkte = zeile[1]
+                #print('puffer punkte in zeile :',j, liste_punkte)
+                #print(type(liste_punkte))
+                punkt_a = liste_punkte[0]
+                punkt_b = liste_punkte[-1]
+                #print('a=',punkt_a, 'b=',punkt_b, 'vo=',punkt_vorne,'hi=',punkt_hinten)
+                #test fuer vorne anhaengen
+                test_12 = are_ident_points(punkt_vorne, punkt_a)
+                if test_12:
+                    punkte_dq.popleft()
+                    punkte_dq.extendleft(liste_punkte)
+                    punkt_vorne = punkt_b
+                    #print(f'{test_12 = }')
+                    puffer[j][0][1] = 0
+                    #print(puffer[j])
+                    continue
+                test_22 = are_ident_points(punkt_vorne, punkt_b)
+                if test_22:
+                    punkte_dq.popleft()
+                    #punkte_dq.extendleft(liste_punkte.reverse())
+                    punkte_dq.extendleft(liste_punkte[::-1])
+                    punkt_vorne = punkt_a
+                    #print(f'{test_22 = }')
+                    puffer[j][0][1] = 0
+                    #print(puffer[j])
+                    continue
+                #test fuer hinten anhaengen
+                test_32 = are_ident_points(punkt_hinten, punkt_a)
+                if test_32:
+                    punkte_dq.pop()
+                    punkte_dq.extend(liste_punkte)
+                    punkt_hinten = punkt_b
+                    #print(f'{test_32 = }')
+                    puffer[j][0][1] = 0
+                    #print(puffer[j])
+                    continue
+                test_42 = are_ident_points(punkt_hinten, punkt_b)
+                if test_42:
+                    punkte_dq.pop()
+                    punkte_dq.extend(liste_punkte[::-1])
+                    punkt_hinten = punkt_a
+                    #print(f'{test_42 = }')
+                    puffer[j][0][1] = 0
+                    #print(puffer[j])
+                    continue                    
+
+        #polylines.append([key, list(punkte_dq)])
+        neu = True
+        
+        puffer.append([[key[0],2], list(punkte_dq)])
+        
+        #print('puffer = ',puffer)
+        #for k,zeile_ in enumerate(puffer):
+            #print('puffer zeile : ', k, zeile_, '\n')
+            
+        
+        zaehler_kennung_1 = 0
+        for line in lines:
+            if line[0][1] == 1:
+                zaehler_kennung_1 = zaehler_kennung_1 + 1
+        #print(f' { zaehler_kennung_1 = }')
+        anzahl_1en = zaehler_kennung_1
+
+    for k,zeile_ in enumerate(puffer):
+        test=zeile_[0][1]
+        if test == 0: continue  # bereits verarbeitet
+        polylines.append(zeile_)
+        
+    anz_um_punkte = 0
+    for polyline in polylines:
+        #print('111',polyline, '\n')
+        #print('222',polyline[1],'\n')
+        polyline_oben = polyline[1]
+        anz_um_punkte = anz_um_punkte + len(polyline_oben) - 1
+        #polyline_unten = []
+        #for punkt in polyline_oben:
+            #punkt_x = punkt[0]
+            #punkt_y = punkt[1]
+            #punkt_z = hoehe_grund
+            #print(punkt)
+            #polyline_unten.append([punkt_x, punkt_y, punkt_z])
+        #print('polylinie oben  : Anzahl Punkte ', len(polyline_oben), polyline_oben[0:2], polyline_oben[-1])
+        #print('polylinie unten : Anzahl Punkte ', len(polyline_unten)) 
+        
+    label_anz_umring.config(text=' Anzahl Elemente Umring (polylines): ' + str(len(polylines)) + '   mit Seiten :  ' + str(anz_um_punkte) )    
+    
+    progressbar_5.stop()
+    
+    if len(polylines) > 0:
+        button_cad_um.config(state='active')
+    else:
+        button_cad_um.config(state='disabled')   
+
+    return 
+
+def umring_zeichnen():
+    global ACTIVEMODEL
+    global dgnModel
+    global g_1mu
+    global g_go
+    global g_go_x_mu
+    global g_go_y_mu
+    global g_go_z_mu
+    global levelList
+    global levelListIDs        
+    global polylines
+    global hl_werte
+    
+    schritt = 2
+    progressbar_5.step(schritt)
+    root.update_idletasks()
+    anzahl = 0
+    
+    if len(polylines) == 0:
+        return
+    
+    PyCadInputQueue.SendKeyin("mark")
+    button3_undo_mark.config(state='active') 
+        
+    hoehe_grund = float(um_un_hoehe_eingabe.get())
+    
+    level_name = str(selected_level_um_ob.get())
+    levelID = 0
+    if level_name in levelList:
+        j = levelList.index(level_name)
+        levelId = levelListIDs[j]
+    um_ob_ebene_id = levelId
+    
+    level_name = str(selected_level_um_un.get())
+    levelID = 0
+    if level_name in levelList:
+        j = levelList.index(level_name)
+        levelId = levelListIDs[j]
+    um_un_ebene_id = levelId  
+    
+    level_name = str(selected_level_um_sei.get())
+    levelID = 0
+    if level_name in levelList:
+        j = levelList.index(level_name)
+        levelId = levelListIDs[j]
+    um_sei_ebene_id = levelId        
+    
+    um_ob_color = int(color_button_um_ob.cget('text'))
+    um_un_color = int(color_button_um_un.cget('text'))
+    um_sei_color = int(color_button_um_sei.cget('text'))
+    
+        
+    for polyline in polylines:
+        #print('111',polyline, '\n')
+        #print('222',polyline[1],'\n')
+        polyline_oben = polyline[1]
+        polyline_unten = []
+        for punkt in polyline_oben:
+            punkt_x = punkt[0]
+            punkt_y = punkt[1]
+            punkt_z = hoehe_grund
+            #print(punkt)
+            polyline_unten.append([punkt_x, punkt_y, punkt_z])
+        #print('polylinie oben  : Anzahl Punkte ', len(polyline_oben), polyline_oben[0:2], polyline_oben[-1])
+        #print('polylinie unten : Anzahl Punkte ', len(polyline_unten))
+        shapes = []
+        shapes_tri = []
+        for i in range(len(polyline_oben) - 1):
+            shape = []
+            tri1 = []
+            tri2 = []
+            shape.append([polyline_unten[i], polyline_oben[i], polyline_oben[i+1],
+                          polyline_unten[i+1], polyline_unten[i]])
+            shapes.append(shape)
+            tri1.append([polyline_unten[i], polyline_oben[i], polyline_unten[i+1], polyline_unten[i]])
+            tri2.append([polyline_unten[i+1], polyline_oben[i], polyline_oben[i+1], polyline_unten[i+1]])
+            shapes_tri.append(tri1)
+            shapes_tri.append(tri2) 
+                
+        #for i in range(len(shapes)):
+            #print('shape ',i, shapes[i])
+            #j = 2 * i
+            #print('tri1  ', j, shapes_tri[j])
+            #print('tri2  ', j, shapes_tri[j+1])
+        
+        if zeichne_um_ob_var.get() == True:
+            color = um_ob_color
+            style = 0
+            weight = 0
+            test = createLineStringElement(polyline_oben, um_ob_ebene_id, color, style, weight)
+            
+        if zeichne_um_un_var.get() == True:
+            color = um_un_color
+            style = 0
+            weight = 0
+            punkt_1 = polyline_unten[0]
+            punkt_2 = polyline_unten[-1]
+            test_sh = are_ident_points(punkt_1, punkt_2) 
+            if test_sh:
+                test = createShapeElement_2(polyline_unten, um_un_ebene_id, color, style, weight)
+            else:
+                test = createLineStringElement(polyline_unten, um_un_ebene_id, color, style, weight)
+                
+        if zeichne_um_sei_var.get() == True:
+            color = um_sei_color
+            style = 0
+            weight = 0
+            
+            sei_wert_s = str(options_sei_art.get())
+            if sei_wert_s == um_sei_werte[0]:  #triangle
+                for element in shapes_tri:
+                    shape_tri = element[0]
+                    #print(shape_tri)
+                    test = createShapeElement_2(shape_tri, um_sei_ebene_id, color, style, weight)
+            else:
+                for element in shapes:
+                    shape_quad = element[0]
+                    #print(shape_quad)
+                    test = createShapeElement_2(shape_quad, um_sei_ebene_id, color, style, weight)
+            
+        PyCadInputQueue.SendReset()
+        PyCadInputQueue.SendKeyin("FIT VIEW EXTENDED")
+        PyCommandState.StartDefaultCommand()
+
+        lift_window(root)                       
+
+    return
+  
+
 # 2 funktionen fuer zwischenpunkte - punktabstand
 def get_intervall():
     _, wert = label_intervall.cget('text').split(':')
@@ -2992,6 +3574,7 @@ if __name__ == '__main__':
             frameExportKoordinaten = ttk.Frame(notebook, width=600, height=480)
             frameVolumen = ttk.Frame(notebook, width=600, height=480)
             frameHoehenlinien = ttk.Frame(notebook, width=600, height=480)
+            frameUmring = ttk.Frame(notebook, width=600, height=480)
 
 
             frameHaupt.pack(fill='both', expand=True)
@@ -3000,6 +3583,7 @@ if __name__ == '__main__':
             frameExportKoordinaten.pack(fill='both', expand=True)
             frameVolumen.pack(fill='both', expand=True)
             frameHoehenlinien.pack(fill='both', expand=True)
+            frameUmring.pack(fill='both', expand=True)
 
             notebook.add(frameHaupt, text='  Hauptprogramm  ')
             notebook.add(frameFarben, text='  Farbpicker aus Colortable  ')
@@ -3007,6 +3591,7 @@ if __name__ == '__main__':
             notebook.add(frameExportKoordinaten, text='  Koordinaten exportieren  ')
             notebook.add(frameVolumen, text=' Volumenberechnung ')
             notebook.add(frameHoehenlinien, text=' Hoehenlinien ')
+            notebook.add(frameUmring, text=' Umring ')
 
             #------frameHaupt-------
             
@@ -3448,8 +4033,8 @@ if __name__ == '__main__':
             menu_intervall.grid(row=0, column=2, sticky='e')
             options_h_intervall.set(h_intervall_werte[5])
 
-            label_hoehl_dgm = tk.Label(frame6_1_1, text=' DGM fuer alle Hoehenlinien auswaehlen :  ')
-            label_hoehl_dgm.grid(row=0, column=3, sticky='ns')
+            label_hoehl_ebene = tk.Label(frame6_1_1, text=' Ebene fuer alle Hoehenlinien auswaehlen :  ')
+            label_hoehl_ebene.grid(row=0, column=3, sticky='ns')
             
             selected_level_hl = tk.StringVar()
             selected_level_hl.set(levelList[0])
@@ -3654,7 +4239,186 @@ if __name__ == '__main__':
             
             button2_undo_mark = tk.Button(frame12_1_1, text='undo mark senden', command=undo_mark)  
             button2_undo_mark.grid(row=0, column=4, pady = 10, sticky='e')  
-            button2_undo_mark.config(state='disabled')                                                       
+            button2_undo_mark.config(state='disabled') 
+            
+            #-------- frame Umring
+            frame7_1 = ttk.Frame(master=frameUmring)
+            frame7_2 = ttk.Frame(master=frameUmring)
+            frame7_1.pack(pady=20)
+            frame7_2.pack(pady=20) 
+            
+            #- define columns
+            columns_5 = ('level_name_5', 'level_id_5', 'anzahl_maschen_5',
+             'z_min_5', 'z_max_5', 'diff_z_5')
+
+            tree_5 = ttk.Treeview(frame7_1, columns=columns_5, show='headings', selectmode="browse")  # nur ein DGM kann selektiert werden
+
+            # define headings 
+            tree_5.column('level_name_5',anchor='center', stretch=False, width=200, minwidth=200)
+            tree_5.heading('level_name_5', text='Level Name')
+            tree_5.column('level_id_5',anchor='center', stretch=False, width=120, minwidth=75)
+            tree_5.heading('level_id_5', text='Level ID')
+            tree_5.column('anzahl_maschen_5',anchor='center', stretch=False, width=150, minwidth=100)
+            tree_5.heading('anzahl_maschen_5', text='Anz. Maschen') 
+            tree_5.column('z_min_5',anchor='center', stretch=False, width=150, minwidth=50)
+            tree_5.heading('z_min_5', text='z min')
+            tree_5.column('z_max_5',anchor='center', stretch=False, width=150, minwidth=50)
+            tree_5.heading('z_max_5', text='z max')                                                
+            tree_5.column('diff_z_5',anchor='center', stretch=False, width=150, minwidth=50)
+            tree_5.heading('diff_z_5', text='z differenz') 
+
+            # ebenen eintragen
+            for ebene in ebenen:
+                tree_5.insert('', tk.END, values=ebene)
+
+            tree_5.grid(row=0, column=0, sticky='nsew')
+            
+            # add scrollbars
+            scrollbar_5 = ttk.Scrollbar(frame7_1, orient=tk.VERTICAL, command=tree_5.yview)
+            tree_5.configure(yscrollcommand=scrollbar_5.set)
+            scrollbar_5.grid(row=0, column=1, sticky='ns') 
+
+            scrollbar_hor_5 = ttk.Scrollbar(frame7_1, orient=tk.HORIZONTAL, command=tree_5.xview)
+            tree_5.configure(xscrollcommand=scrollbar_hor_5.set)
+            scrollbar_hor_5.grid(row=1, column=0, sticky='ew')             
+            
+            progressbar_5 = ttk.Progressbar(frame7_1, orient=tk.HORIZONTAL, length=600, mode="determinate")
+            progressbar_5.grid(row=2, column=0, sticky='e') 
+            
+            button_25 = tk.Button(frame7_1, text='1. Zeichnung scannen (Maschen)', command=select_5_ElementsbyType)
+            button_25.grid(row=2, column=0, ipadx=30, sticky='w') 
+            
+            frame13_1_1 = ttk.Frame(master=frame7_1)
+            frame13_1_1.grid(sticky='w', row=3, column=0) 
+            
+            label_umring = tk.Label(frame13_1_1,text='       2. Ebene markieren, danach einstellen -->   Hoehe_Grund, Farben, Ebenen und Optionen ')
+            label_umring.grid(row=0, column=0,pady = 10, sticky='ns')
+            
+            label_um_un_hoehe = tk.Label(frame13_1_1, text='   Hoehe_Grund eingeben :  ')
+            label_um_un_hoehe.grid(row=0, column=1, sticky='ns')                      
+            
+            um_un_hoehe_eingabe = tk.Entry(frame13_1_1)
+            um_un_hoehe_eingabe.insert(0,"0.000")
+            um_un_hoehe_eingabe.grid(row=0, column=2, sticky='e')             
+            
+            # ---------------------------------------------------                                                           
+                     
+            frame14_1_1 = ttk.Frame(master=frame7_1)
+            frame14_1_1.grid(sticky='w', row=5, column=0) 
+            
+            label_farbe_um_ob = tk.Label(frame14_1_1,text='Fuer  Umring  oben einstellen: Farbe:')
+            label_farbe_um_ob.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            um_ob_Color = 9
+           
+            color_button_um_ob = tk.Button(frame14_1_1, height=1, width=10, text=um_ob_Color, bg=farben_[um_ob_Color], command=select_tab_um_ob)
+            color_button_um_ob.grid(row=0, column=1,pady = 10, sticky='e')
+            
+            label_um_ob_ebene = tk.Label(frame14_1_1, text=' Ebene :  ')
+            label_um_ob_ebene.grid(row=0, column=3, sticky='ns')
+            
+            selected_level_um_ob = tk.StringVar()
+            selected_level_um_ob.set(levelList[0])
+            um_ob_level_option = tk.OptionMenu(frame14_1_1, selected_level_um_ob, *levelList) 
+            um_ob_level_option.grid(row=0, column=4, sticky='e') 
+            
+            label_um_ob_dummy_1 = tk.Label(frame14_1_1, text='   ')
+            label_um_ob_dummy_1.grid(row=0, column=8, sticky='ns')            
+            
+            zeichne_um_ob_var = tk.BooleanVar(value=False) 
+            checkbox_um_ob_cad = ttk.Checkbutton(frame14_1_1,text='  in CAD zeichnen?', variable=zeichne_um_ob_var)  
+            checkbox_um_ob_cad.grid(row=0, column=9, sticky='e')                        
+            
+            # --------------------------------------------------- 
+            
+            frame15_1_1 = ttk.Frame(master=frame7_1)
+            frame15_1_1.grid(sticky='w', row=6, column=0) 
+            
+            label_farbe_um_un = tk.Label(frame15_1_1,text='Fuer  Umring unten einstellen: Farbe:')
+            label_farbe_um_un.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            um_un_Color = 9
+           
+            color_button_um_un = tk.Button(frame15_1_1, height=1, width=10, text=um_un_Color, bg=farben_[um_un_Color], command=select_tab_um_un)
+            color_button_um_un.grid(row=0, column=1,pady = 10, sticky='e') 
+            
+            label_um_un_ebene = tk.Label(frame15_1_1, text=' Ebene :  ')
+            label_um_un_ebene.grid(row=0, column=3, sticky='ns')
+            
+            selected_level_um_un = tk.StringVar()
+            selected_level_um_un.set(levelList[0])
+            um_un_level_option = tk.OptionMenu(frame15_1_1, selected_level_um_un, *levelList) 
+            um_un_level_option.grid(row=0, column=4, sticky='e') 
+            
+            label_um_un_dummy_1 = tk.Label(frame15_1_1, text='   ')
+            label_um_un_dummy_1.grid(row=0, column=8, sticky='ns')            
+            
+            zeichne_um_un_var = tk.BooleanVar(value=False) 
+            checkbox_um_un_cad = ttk.Checkbutton(frame15_1_1,text='  in CAD zeichnen?', variable=zeichne_um_un_var)  
+            checkbox_um_un_cad.grid(row=0, column=9, sticky='e')                        
+            
+            # --------------------------------------------------- 
+            
+            frame16_1_1 = ttk.Frame(master=frame7_1)
+            frame16_1_1.grid(sticky='w', row=7, column=0) 
+            
+            label_farbe_um_sei = tk.Label(frame16_1_1,text='Fuer Umring Seiten einstellen: Farbe:')
+            label_farbe_um_sei.grid(row=0, column=0,pady = 10, sticky='w') 
+            
+            um_sei_Color = 9
+           
+            color_button_um_sei = tk.Button(frame16_1_1, height=1, width=10, text=um_sei_Color, bg=farben_[um_sei_Color], command=select_tab_um_sei)
+            color_button_um_sei.grid(row=0, column=1,pady = 10, sticky='e')
+            
+            label_um_sei_ebene = tk.Label(frame16_1_1, text=' Ebene :  ')
+            label_um_sei_ebene.grid(row=0, column=3, sticky='ns')
+            
+            selected_level_um_sei = tk.StringVar()
+            selected_level_um_sei.set(levelList[0])
+            um_sei_level_option = tk.OptionMenu(frame16_1_1, selected_level_um_sei, *levelList) 
+            um_sei_level_option.grid(row=0, column=4, sticky='e')
+
+            label_um_sei_dummy_1 = tk.Label(frame16_1_1, text='   ')
+            label_um_sei_dummy_1.grid(row=0, column=8, sticky='ns')            
+            
+            zeichne_um_sei_var = tk.BooleanVar(value=False) 
+            checkbox_um_sei_cad = ttk.Checkbutton(frame16_1_1,text='  in CAD zeichnen?', variable=zeichne_um_sei_var)  
+            checkbox_um_sei_cad.grid(row=0, column=9, sticky='e') 
+            
+            label_dummy_um = tk.Label(frame16_1_1, text=' Seiten zeichnen als ->')
+            label_dummy_um.grid(row=0, column=10, sticky='w') 
+            
+            um_sei_werte = ('Dreiecke ','Vierecke') 
+            
+            options_sei_art = tk.StringVar()
+            menu_sei_werte = tk.OptionMenu(frame16_1_1, options_sei_art, *um_sei_werte)
+            menu_sei_werte.grid(sticky='e', row=0, column=11)
+            options_sei_art.set(um_sei_werte[1])             
+                                                
+            # --------------------------------------------------- 
+            frame17_1_1 = ttk.Frame(master=frame7_1)
+            frame17_1_1.grid(sticky='w', row=9, column=0)             
+            
+            um_berechnen_button = tk.Button(frame17_1_1, text="3. Umring berechnen", command=umring_berechnen)
+            um_berechnen_button.grid(row=0, column=0, pady = 10, sticky='w')  
+            
+            label_anz_umring = tk.Label(frame17_1_1, text=' Anzahl Elemente Umring (polylines): 0 ')
+            label_anz_umring.grid(row=0, column=1, sticky='w') 
+            
+            # ---------------------------------------------------
+            frame18_1_1 = ttk.Frame(master=frame7_1)
+            frame18_1_1.grid(sticky='w', row=10, column=0)
+            
+            button_cad_um = tk.Button(frame18_1_1, text='4. Umringe in CAD zeichnen', command=umring_zeichnen)  
+            button_cad_um.grid(row=0, column=0, pady = 10, sticky='w')  
+            button_cad_um.config(state='disabled') 
+            
+            label_um_dummy_3 = tk.Label(frame18_1_1, text='   ')
+            label_um_dummy_3.grid(row=0, column=1, sticky='ns')            
+            
+            button3_undo_mark = tk.Button(frame18_1_1, text='undo mark senden', command=undo_mark)  
+            button3_undo_mark.grid(row=0, column=4, pady = 10, sticky='e')  
+            button3_undo_mark.config(state='disabled')                          
                       
             #--- weiter FrameHaupt
             # Level

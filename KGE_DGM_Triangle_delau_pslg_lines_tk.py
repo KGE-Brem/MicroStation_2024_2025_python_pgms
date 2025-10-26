@@ -52,6 +52,7 @@ from tkinter import filedialog
 from tkinter import scrolledtext
 from tkinter import colorchooser
 from tkinter import Frame
+from datetime import datetime
 
 import tkinter as tk
 from tkinter import ttk
@@ -109,6 +110,14 @@ def file_save_3(text_):
         return
     for zeile_ in text_:
         f.write(zeile_)
+    f.close()    
+
+def file_save_4(text_):
+    f = filedialog.asksaveasfile(mode='w', initialdir = dgn_pfad, initialfile = 'KGE_DGM_to_LandXML.xml', defaultextension=".xml")
+    if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
+        return
+    for zeile_ in text_:
+        f.write(zeile_+'\n')
     f.close()    
 
 def dateien_einlesen(dateien):
@@ -3463,14 +3472,176 @@ def umring_zeichnen():
                     #print(shape_quad)
                     test = createShapeElement_2(shape_quad, um_sei_ebene_id, color, style, weight)
             
-        PyCadInputQueue.SendReset()
-        PyCadInputQueue.SendKeyin("FIT VIEW EXTENDED")
-        PyCommandState.StartDefaultCommand()
+    PyCadInputQueue.SendReset()
+    PyCadInputQueue.SendKeyin("FIT VIEW EXTENDED")
+    PyCommandState.StartDefaultCommand()
 
-        lift_window(root)                       
+    lift_window(root)                       
 
     return
-  
+
+def export_dgm_to_lamdxml():
+    global maschen_eines_levels
+    
+    # keine ebene gewaehlt, abbruch
+    if len(tree_5.selection()) == 0: return
+    
+    ebenenId_selected_ = []
+    ebeneDatensatz_selected_ = []
+
+    for selected_item in tree_5.selection():
+        item = tree_5.item(selected_item)
+        record = item['values']
+        ebenen_name_ = record[0]
+        id_=record[1]
+        ebenenId_selected_.append(id_)
+        ebeneDatensatz_selected_.append(record)
+        #print(record)
+        #print(id_)
+        #print(len(maschen_eines_levels[id_]))
+        
+    schritt = 2
+    progressbar_5.step(schritt)
+    root.update_idletasks()
+    anzahl = 0
+    
+    current_dateTime = datetime.now()
+    datum = current_dateTime.strftime("%Y-%m-%d")
+    zeit = current_dateTime.strftime("%H:%M:%S")
+    protokoll = []
+
+    punkt_texte = []
+    faces = []
+    koordinaten_liste_ = []
+    koordinaten_set_ = set()
+    koordinaten_dict_ = {}
+
+    for masche in maschen_eines_levels[id_]:
+        #print(masche)
+        #face = ''
+        for punkt_ in masche[0:3]:
+            koordinate_ = "{1:.4f} {0:.4f} {2:.4f}".format(punkt_[0], punkt_[1], punkt_[2])
+            koordinaten_set_.add(koordinate_)
+
+        anzahl = anzahl + 1
+        if anzahl % 1000 == 0:
+            progressbar_5.step(schritt)
+            root.update_idletasks()
+        if anzahl % 45000 == 0:
+            schritt = schritt * -1 
+            
+    nummer = 0       
+    for element in koordinaten_set_:
+        nummer = nummer + 1
+        koordinaten_dict_[element] = str(nummer)
+        
+    for masche in maschen_eines_levels[id_]:
+        #print(masche)
+        face = ''
+        for punkt_ in masche[0:3]:
+            koordinate_ = "{1:.4f} {0:.4f} {2:.4f}".format(punkt_[0], punkt_[1], punkt_[2])
+            nummer = koordinaten_dict_[koordinate_]
+            face = face + ' ' + nummer
+            
+        faces.append(face[1:]) #das erste leerzeichen ueberlesen
+        
+        anzahl = anzahl + 1
+        if anzahl % 1000 == 0:
+            progressbar_5.step(schritt)
+            root.update_idletasks()
+        if anzahl % 45000 == 0:
+            schritt = schritt * -1                
+    punkt_texte = []
+    for koordinate, nummer in koordinaten_dict_.items():
+        punkt_text = ' '*5*3 + '<P id="' + nummer + '">' + koordinate + '</P>'
+        punkt_texte.append(punkt_text)
+ 
+    zeile = ' '*0*3 + '<?xml version="1.0"?>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*0*3 + '<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.landxml.org/schema/LandXML-1.2 http://www.landxml.org/schema/LandXML-1.2/LandXML-1.2.xsd" version="1.2" readOnly="false" language="English" ' #date="2018-08-27" time="17:56:22">'
+    zeile = zeile + 'date="' + datum + '" time="' + zeit + '">'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*1*3 + '<Units>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*2*3 + '<Metric linearUnit="meter" areaUnit="squareMeter" volumeUnit="cubicMeter"/>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*1*3 + '</Units>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*1*3 + '<Application name="KGE_DGM_Triangle_delau_pslg_lines_tk.py" URL="https://github.com/KGE-Brem/MicroStation_2024_2025_python_pgms"></Application>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*1*3 + '<Surfaces>'
+    #print(zeile)
+    protokoll.append(zeile)
+        
+    #zeile = ' '*2*3 + '<Surface name="level_name">'
+    zeile = ' '*2*3 + '<Surface name="' + ebenen_name_ + '">'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*3*3 + '<Definition surfType="TIN">'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*4*3 + '<Pnts>'
+    #print(zeile)
+    protokoll.append(zeile)
+        
+    for zeile in punkt_texte:
+        #print(zeile)
+        protokoll.append(zeile)
+        
+    zeile = ' '*4*3 + '</Pnts>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*4*3 + '<Faces>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    for face in faces:
+        face_text = ' '*5*3 + '<F>' + face + '</F>'
+        #print(face_text)
+        protokoll.append(face_text)
+        
+    zeile = ' '*4*3 + '</Faces>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*3*3 + '</Definition>'
+    #print(zeile)
+    protokoll.append(zeile)
+    
+    zeile = ' '*2*3 + '</Surface>'
+    #print(zeile)
+    protokoll.append(zeile)
+
+    zeile = ' '*1*3 + '</Surfaces>'
+    #print(zeile)
+    protokoll.append(zeile)
+
+    zeile = ' '*0*3 + '</LandXML>'
+    #print(zeile)
+    protokoll.append(zeile)
+
+    #for zeile in protokoll:
+        #print(zeile)
+    file_save_4(protokoll)
+
+    progressbar_5.stop()
+
+    return
 
 # 2 funktionen fuer zwischenpunkte - punktabstand
 def get_intervall():
@@ -4418,8 +4589,15 @@ if __name__ == '__main__':
             
             button3_undo_mark = tk.Button(frame18_1_1, text='undo mark senden', command=undo_mark)  
             button3_undo_mark.grid(row=0, column=4, pady = 10, sticky='e')  
-            button3_undo_mark.config(state='disabled')                          
-                      
+            button3_undo_mark.config(state='disabled')
+            
+            # ---------------------------------------------------
+            frame19_1_1 = ttk.Frame(master=frame7_1)
+            frame19_1_1.grid(sticky='w', row=11, column=0)
+
+            button1_export_dgm = tk.Button(frame19_1_1, text='DGM auf gewaehlter Ebene als TIN im Format LandXML exportieren', command=export_dgm_to_lamdxml)  
+            button1_export_dgm.grid(row=0, column=0, pady = 10, sticky='w')  
+        
             #--- weiter FrameHaupt
             # Level
             # levelList,levelListIDs = GetLevelList()   

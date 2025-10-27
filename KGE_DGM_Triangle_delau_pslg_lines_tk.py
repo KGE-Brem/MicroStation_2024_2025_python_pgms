@@ -1774,7 +1774,10 @@ def select_3_ElementsbyType():
     for i in range(len(levelListIDs)):
         levelId_ = levelListIDs[i]
         if levelAnzahlMaschen[levelId_] > 0:
-            hoeheMittel = levelVolumen[levelId_] / levelGrundFlaeche[levelId_]
+            if levelGrundFlaeche[levelId_] == 0:
+                hoeheMittel = 0
+            else:
+                hoeheMittel = levelVolumen[levelId_] / levelGrundFlaeche[levelId_]
             ebenen.append((levelList[i], levelListIDs[i], levelAnzahlMaschen[levelId_],
              '{0:_.3f}'.format(levelGrundFlaeche[levelId_]), '{0:_.3f}'.format(levelVolumen[levelId_]),
               '{0:_.8f}'.format(hoeheMittel), '{0:_.3f}'.format(hoeheMin[levelId_]),
@@ -2225,7 +2228,10 @@ def dgm_volumen_berechnen_2():
     file_text_vol.insert(tk.END, 'Grundflaeche des DGM              : {0:_.3f}'.format(grundflaeche_aus_ges)  + '\n')
     file_text_vol.insert(tk.END, 'Oberflaeche  des DGM              : {0:_.3f}'.format(oberflaeche_aus_ges)  + '\n')
     file_text_vol.insert(tk.END, 'Volumen ausgegli.Abrechnungshoehe : {0:_.3f}'.format(volumen_aus_ges - grundflaeche_aus_ges * abr_hoehe)  + '\n')
-    file_text_vol.insert(tk.END, 'mittlere Hoehe                    : {0:_.6f}'.format(volumen_aus_ges/grundflaeche_aus_ges)  + '\n' + '\n')
+    if grundflaeche_aus_ges == 0:
+        file_text_vol.insert(tk.END, 'mittlere Hoehe                    : {0:_.6f}'.format(0.000)  + '\n' + '\n')
+    else:
+        file_text_vol.insert(tk.END, 'mittlere Hoehe                    : {0:_.6f}'.format(volumen_aus_ges/grundflaeche_aus_ges)  + '\n' + '\n')
     file_text_vol.insert(tk.END, 'Grundflaeche unter Abr.Hoehe      : {0:_.3f}'.format(grundflaeche_unter)  + '\n')
     file_text_vol.insert(tk.END, 'Oberflaeche  unter Abr.Hoehe      : {0:_.3f}'.format(oberflaeche_unter)  + '\n')
     file_text_vol.insert(tk.END, 'Volumen      unter Abr.Hoehe      : {0:_.3f}'.format(volumen_unter)  + '\n' + '\n')
@@ -2420,7 +2426,7 @@ def select_5_ElementsbyType():
         #rechtsMax.append(0)
         #hochMin.append(0)
         #hochMax.append(0)
-
+    button1_export_dgm.config(state='active')
     schritt = 2
     progressbar_5.step(schritt)
     root.update_idletasks()
@@ -3172,6 +3178,13 @@ def umring_berechnen():
         seiten.append([s_mitte_02, seite_02])
         seiten.append([s_mitte_12, seite_12])
         
+        anzahl = anzahl + 1
+        if anzahl % 1000 == 0:
+            progressbar_5.step(schritt)
+            root.update_idletasks()
+        if anzahl % 45000 == 0:
+            schritt = schritt * -1        
+        
     seiten.sort()
         
     seiten_gruppen = itertools.groupby(seiten, key=lambda x: x[0])
@@ -3195,6 +3208,13 @@ def umring_berechnen():
     
     while anzahl_1en > 0:
         for i, linie in enumerate(lines[:]):
+            anzahl = anzahl + 1
+            if anzahl % 1000 == 0:
+                progressbar_5.step(schritt)
+                root.update_idletasks()
+            if anzahl % 45000 == 0:
+                schritt = schritt * -1
+                
             key = linie[0]
             if linie[0][1] == 0: continue   #die linie ist bereits verarbeitet, also ueberspringen
             if neu:
@@ -3312,7 +3332,6 @@ def umring_berechnen():
         #for k,zeile_ in enumerate(puffer):
             #print('puffer zeile : ', k, zeile_, '\n')
             
-        
         zaehler_kennung_1 = 0
         for line in lines:
             if line[0][1] == 1:
@@ -3512,14 +3531,16 @@ def export_dgm_to_lamdxml():
 
     punkt_texte = []
     faces = []
-    koordinaten_liste_ = []
+    #koordinaten_liste_ = []
     koordinaten_set_ = set()
     koordinaten_dict_ = {}
 
     for masche in maschen_eines_levels[id_]:
-        #print(masche)
-        #face = ''
         for punkt_ in masche[0:3]:
+            #beachte: in landxml erst hochwert dann rechtswert
+            #http://www.landxml.org/schema/landxml-1.2/documentation/
+            #http://www.landxml.org/schema/landxml-1.2/documentation/LandXML-1.2Doc_Point.html
+            #"northing easting elevation"             
             koordinate_ = "{1:.4f} {0:.4f} {2:.4f}".format(punkt_[0], punkt_[1], punkt_[2])
             koordinaten_set_.add(koordinate_)
 
@@ -3536,7 +3557,6 @@ def export_dgm_to_lamdxml():
         koordinaten_dict_[element] = str(nummer)
         
     for masche in maschen_eines_levels[id_]:
-        #print(masche)
         face = ''
         for punkt_ in masche[0:3]:
             koordinate_ = "{1:.4f} {0:.4f} {2:.4f}".format(punkt_[0], punkt_[1], punkt_[2])
@@ -3550,93 +3570,72 @@ def export_dgm_to_lamdxml():
             progressbar_5.step(schritt)
             root.update_idletasks()
         if anzahl % 45000 == 0:
-            schritt = schritt * -1                
+            schritt = schritt * -1
+            
     punkt_texte = []
     for koordinate, nummer in koordinaten_dict_.items():
         punkt_text = ' '*5*3 + '<P id="' + nummer + '">' + koordinate + '</P>'
         punkt_texte.append(punkt_text)
  
     zeile = ' '*0*3 + '<?xml version="1.0"?>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*0*3 + '<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.landxml.org/schema/LandXML-1.2 http://www.landxml.org/schema/LandXML-1.2/LandXML-1.2.xsd" version="1.2" readOnly="false" language="English" ' #date="2018-08-27" time="17:56:22">'
     zeile = zeile + 'date="' + datum + '" time="' + zeit + '">'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*1*3 + '<Units>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*2*3 + '<Metric linearUnit="meter" areaUnit="squareMeter" volumeUnit="cubicMeter"/>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*1*3 + '</Units>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*1*3 + '<Application name="KGE_DGM_Triangle_delau_pslg_lines_tk.py" URL="https://github.com/KGE-Brem/MicroStation_2024_2025_python_pgms"></Application>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*1*3 + '<Surfaces>'
-    #print(zeile)
     protokoll.append(zeile)
         
-    #zeile = ' '*2*3 + '<Surface name="level_name">'
     zeile = ' '*2*3 + '<Surface name="' + ebenen_name_ + '">'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*3*3 + '<Definition surfType="TIN">'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*4*3 + '<Pnts>'
-    #print(zeile)
     protokoll.append(zeile)
         
     for zeile in punkt_texte:
-        #print(zeile)
         protokoll.append(zeile)
         
     zeile = ' '*4*3 + '</Pnts>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*4*3 + '<Faces>'
-    #print(zeile)
     protokoll.append(zeile)
     
     for face in faces:
         face_text = ' '*5*3 + '<F>' + face + '</F>'
-        #print(face_text)
         protokoll.append(face_text)
         
     zeile = ' '*4*3 + '</Faces>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*3*3 + '</Definition>'
-    #print(zeile)
     protokoll.append(zeile)
     
     zeile = ' '*2*3 + '</Surface>'
-    #print(zeile)
     protokoll.append(zeile)
 
     zeile = ' '*1*3 + '</Surfaces>'
-    #print(zeile)
     protokoll.append(zeile)
 
     zeile = ' '*0*3 + '</LandXML>'
-    #print(zeile)
     protokoll.append(zeile)
 
-    #for zeile in protokoll:
-        #print(zeile)
     file_save_4(protokoll)
 
     progressbar_5.stop()
@@ -4596,7 +4595,8 @@ if __name__ == '__main__':
             frame19_1_1.grid(sticky='w', row=11, column=0)
 
             button1_export_dgm = tk.Button(frame19_1_1, text='DGM auf gewaehlter Ebene als TIN im Format LandXML exportieren', command=export_dgm_to_lamdxml)  
-            button1_export_dgm.grid(row=0, column=0, pady = 10, sticky='w')  
+            button1_export_dgm.grid(row=0, column=0, pady = 10, sticky='w')
+            button1_export_dgm.config(state='disabled')
         
             #--- weiter FrameHaupt
             # Level
